@@ -1,0 +1,53 @@
+{
+  "name": "diwish-event-tool",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "tsx --test src/lib/audit-log.test.ts src/lib/password.test.ts src/lib/permissions.test.ts src/modules/tasks/reverse-planning.test.ts src/modules/events/template-tasks.test.ts src/modules/events/readiness.test.ts src/modules/events/metrics.test.ts src/modules/communications/metrics.test.ts src/modules/run-of-show/schedule.test.ts src/modules/evaluations/metrics.test.ts src/modules/participants/metrics.test.ts src/modules/notifications/due-notifications.test.ts",
+    "typecheck": "next typegen && tsc --noEmit",
+    "quality": "npm run db:validate && npm run typecheck && npm run lint && npm test && npm run build",
+    "postinstall": "prisma generate",
+    "db:generate": "prisma generate",
+    "db:validate": "prisma validate",
+    "db:format": "prisma format",
+    "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:seed": "prisma db seed",
+    "db:setup": "prisma generate && prisma validate && prisma migrate dev && prisma db seed",
+    "db:studio": "prisma studio",
+    "notifications:generate": "tsx scripts/generate-due-notifications.ts",
+    "user:ensure-admin": "tsx scripts/ensure-admin-user.ts",
+    "user:set-password": "tsx scripts/set-user-password.ts"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "next": "latest",
+    "pg": "^8.21.0",
+    "react": "latest",
+    "react-dom": "latest",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "latest",
+    "@types/node": "latest",
+    "@types/pg": "^8.20.0",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "dotenv": "^17.4.2",
+    "eslint": "latest",
+    "eslint-config-next": "latest",
+    "prettier": "latest",
+    "prettier-plugin-tailwindcss": "latest",
+    "prisma": "^7.8.0",
+    "tailwindcss": "latest",
+    "tsx": "^4.22.4",
+    "typescript": "latest"
+  }
+}

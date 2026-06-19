@@ -1,0 +1,448 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  // Prisma 7 reads the CLI connection from prisma.config.ts.
+  // The app uses DATABASE_URL; migrations use DATABASE_URL_UNPOOLED.
+}
+
+enum UserRole {
+  ADMIN
+  EVENT_LEAD
+  COMMUNICATION
+  TEAM_MEMBER
+  GUEST
+}
+
+enum EventStatus {
+  DRAFT
+  PLANNING
+  EXECUTION
+  FOLLOW_UP
+  COMPLETED
+  CANCELLED
+  ARCHIVED
+}
+
+enum TaskStatus {
+  OPEN
+  IN_PROGRESS
+  BLOCKED
+  IN_REVIEW
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum EventPhase {
+  CONCEPTION
+  FOUR_EYES_REVIEW
+  LOCATION_CATERING
+  SPEAKERS_PARTNERS
+  COMMUNICATION
+  PARTICIPANT_MANAGEMENT
+  MATERIAL_PRESENTATION
+  TECHNOLOGY
+  EVENT_DAY
+  FOLLOW_UP
+  EVALUATION
+}
+
+enum PlannerSyncStatus {
+  NOT_SYNCED
+  PENDING
+  SYNCED
+  ERROR
+  DISABLED
+}
+
+enum NotificationType {
+  TASK_ASSIGNED
+  TASK_DUE_SOON
+  TASK_DUE_IN_7_DAYS
+  TASK_DUE_IN_3_DAYS
+  TASK_DUE_TODAY
+  TASK_OVERDUE
+  TASK_OVERDUE_1_DAY
+  CRITICAL_TASK_OVERDUE
+  TASK_COMPLETED
+  APPROVAL_REQUESTED
+  APPROVAL_GRANTED
+  ESCALATION
+  PLANNER_SYNC_FAILED
+}
+
+enum CommunicationChannel {
+  WEBSITE
+  NEWSLETTER
+  LINKEDIN
+  PARTNER_COMMUNICATION
+  PERSONAL_INVITATION
+  REMINDER_EMAIL
+  PRESS
+  POST_EVENT_REPORT
+}
+
+enum CommunicationApprovalStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum ParticipantTargetGroup {
+  COMPANY
+  STARTUP
+  SME
+  UNIVERSITY_RESEARCH
+  PUBLIC_ADMINISTRATION_POLITICS
+  MULTIPLIER
+  INVESTOR_FUNDING
+  TECHNOLOGY_PROVIDER
+  PROFESSIONAL_TALENT
+  PRESS
+  OTHER
+}
+
+enum ParticipantStatus {
+  IDENTIFIED
+  INVITED
+  REGISTERED
+  CONFIRMED
+  WAITLIST
+  CANCELLED
+}
+
+enum ParticipantRating {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum FollowUpStatus {
+  NOT_REQUIRED
+  OPEN
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String?
+  role         UserRole @default(TEAM_MEMBER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  leadEvents               Event[]                @relation("EventLead")
+  coLeadEvents             Event[]                @relation("EventCoLead")
+  communicationOwnerEvents Event[]                @relation("EventCommunicationOwner")
+  responsibleTasks         EventTask[]            @relation("TaskResponsible")
+  reviewTasks              EventTask[]            @relation("TaskReviewer")
+  approvedTasks            EventTask[]            @relation("TaskApprover")
+  communicationMeasures    CommunicationMeasure[]
+  runOfShowItems           RunOfShowItem[]
+  notifications            Notification[]
+  auditLogs                AuditLog[]
+  sessions                 UserSession[]
+
+  @@index([role])
+}
+
+model UserSession {
+  id         String    @id @default(cuid())
+  userId     String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model AppSetting {
+  key       String   @id
+  value     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Event {
+  id                   String      @id @default(cuid())
+  title                String
+  description          String?
+  eventDate            DateTime    @db.Date
+  startTime            DateTime?   @db.Time(0)
+  endTime              DateTime?   @db.Time(0)
+  location             String?
+  format               String?
+  goal                 String?
+  targetAudience       String?
+  valueProposition     String?
+  desiredOutcome       String?
+  eventLeadId          String?
+  coLeadId             String?
+  communicationOwnerId String?
+  budgetFrame          Decimal?    @db.Decimal(12, 2)
+  participantGoal      Int?
+  registrationUrl      String?
+  presentationUrl      String?
+  feedbackFormUrl      String?
+  photoFolderUrl       String?
+  status               EventStatus @default(DRAFT)
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+
+  eventLead             User?                  @relation("EventLead", fields: [eventLeadId], references: [id], onDelete: SetNull)
+  coLead                User?                  @relation("EventCoLead", fields: [coLeadId], references: [id], onDelete: SetNull)
+  communicationOwner    User?                  @relation("EventCommunicationOwner", fields: [communicationOwnerId], references: [id], onDelete: SetNull)
+  tasks                 EventTask[]
+  communicationMeasures CommunicationMeasure[]
+  runOfShowItems        RunOfShowItem[]
+  evaluation            EventEvaluation?
+  participants          EventParticipant[]
+
+  @@index([eventDate])
+  @@index([status, eventDate])
+  @@index([eventLeadId])
+  @@index([coLeadId])
+  @@index([communicationOwnerId])
+}
+
+model EventParticipant {
+  id                   String                 @id @default(cuid())
+  eventId              String
+  name                 String
+  organization         String?
+  role                 String?
+  email                String
+  targetGroupType      ParticipantTargetGroup @default(OTHER)
+  status               ParticipantStatus      @default(IDENTIFIED)
+  personallyInvited    Boolean                @default(false)
+  registered           Boolean                @default(false)
+  attended             Boolean                @default(false)
+  noShowRisk           ParticipantRating      @default(MEDIUM)
+  interestTopic        String?
+  matchmakingPotential ParticipantRating      @default(MEDIUM)
+  followUpNeeded       Boolean                @default(false)
+  followUpStatus       FollowUpStatus         @default(NOT_REQUIRED)
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, email])
+  @@index([eventId, targetGroupType])
+  @@index([eventId, status])
+  @@index([eventId, followUpNeeded, followUpStatus])
+}
+
+model EventEvaluation {
+  id                    String   @id @default(cuid())
+  eventId               String   @unique
+  registrations         Int?
+  attendees             Int?
+  noShowRate            Float?
+  targetAudienceFit     Int?
+  satisfaction          Float?
+  netPromoterScore      Int?
+  newContacts           Int?
+  cooperationApproaches Int?
+  followUpConversations Int?
+  qualitativeLearnings  String?
+  wentWell              String?
+  wasDifficult          String?
+  nextTimeDifferent     String?
+  repeatEvent           Boolean?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+}
+
+model RunOfShowItem {
+  id                String   @id @default(cuid())
+  eventId           String
+  startTime         DateTime @db.Time(0)
+  endTime           DateTime @db.Time(0)
+  programItem       String
+  goal              String?
+  method            String?
+  responsibleUserId String?
+  material          String?
+  risk              String?
+  transitionNote    String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  event           Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  responsibleUser User? @relation(fields: [responsibleUserId], references: [id], onDelete: SetNull)
+
+  @@index([eventId, startTime])
+  @@index([responsibleUserId])
+}
+
+model CommunicationMeasure {
+  id                String                      @id @default(cuid())
+  eventId           String
+  channel           CommunicationChannel
+  targetAudience    String
+  message           String
+  format            String
+  responsibleUserId String?
+  publicationDate   DateTime                    @db.Date
+  approvalStatus    CommunicationApprovalStatus @default(DRAFT)
+  assetUrl          String?
+  clicks            Int                         @default(0)
+  registrations     Int                         @default(0)
+  reach             Int                         @default(0)
+  comments          String?
+  createdAt         DateTime                    @default(now())
+  updatedAt         DateTime                    @updatedAt
+
+  event           Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  responsibleUser User? @relation(fields: [responsibleUserId], references: [id], onDelete: SetNull)
+
+  @@index([eventId, publicationDate])
+  @@index([eventId, channel])
+  @@index([eventId, approvalStatus])
+  @@index([responsibleUserId])
+}
+
+model EventTemplate {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  taskTemplates TaskTemplate[]
+}
+
+model TaskTemplate {
+  id                     String       @id @default(cuid())
+  eventTemplateId        String
+  title                  String
+  description            String?
+  phase                  EventPhase
+  defaultResponsibleRole UserRole
+  defaultReviewerRole    UserRole?
+  priority               TaskPriority @default(MEDIUM)
+  offsetDays             Int
+  approvalRequired       Boolean      @default(false)
+  isCritical             Boolean      @default(false)
+
+  eventTemplate EventTemplate @relation(fields: [eventTemplateId], references: [id], onDelete: Cascade)
+
+  @@index([eventTemplateId, phase])
+}
+
+model EventTask {
+  id                          String            @id @default(cuid())
+  eventId                     String
+  title                       String
+  description                 String?
+  phase                       EventPhase
+  responsibleUserId           String?
+  reviewerUserId              String?
+  status                      TaskStatus        @default(OPEN)
+  priority                    TaskPriority      @default(MEDIUM)
+  dueDate                     DateTime?         @db.Date
+  offsetDays                  Int?
+  isDueDateManuallyOverridden Boolean           @default(false)
+  approvalRequired            Boolean           @default(false)
+  approvedById                String?
+  approvedAt                  DateTime?
+  isCritical                  Boolean           @default(false)
+  reminderEnabled             Boolean           @default(true)
+  reminderSentAt              DateTime?
+  escalationSentAt            DateTime?
+  plannerTaskId               String?
+  plannerPlanId               String?
+  plannerBucketId             String?
+  plannerSyncStatus           PlannerSyncStatus @default(NOT_SYNCED)
+  plannerLastSyncedAt         DateTime?
+  plannerSyncRequired         Boolean           @default(false)
+  plannerSyncError            String?
+  completedAt                 DateTime?
+  createdAt                   DateTime          @default(now())
+  updatedAt                   DateTime          @updatedAt
+
+  event           Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  responsibleUser User?            @relation("TaskResponsible", fields: [responsibleUserId], references: [id], onDelete: SetNull)
+  reviewerUser    User?            @relation("TaskReviewer", fields: [reviewerUserId], references: [id], onDelete: SetNull)
+  approvedBy      User?            @relation("TaskApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  dependencies    TaskDependency[] @relation("TaskDependencies")
+  dependedOnBy    TaskDependency[] @relation("TaskDependents")
+  notifications   Notification[]
+
+  @@index([eventId, phase])
+  @@index([eventId, status])
+  @@index([responsibleUserId, status])
+  @@index([reviewerUserId])
+  @@index([approvedById])
+  @@index([dueDate, status])
+  @@index([plannerSyncRequired, plannerSyncStatus])
+  @@index([plannerTaskId])
+}
+
+model TaskDependency {
+  id              String @id @default(cuid())
+  taskId          String
+  dependsOnTaskId String
+
+  task          EventTask @relation("TaskDependencies", fields: [taskId], references: [id], onDelete: Cascade)
+  dependsOnTask EventTask @relation("TaskDependents", fields: [dependsOnTaskId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, dependsOnTaskId])
+  @@index([dependsOnTaskId])
+}
+
+model Notification {
+  id               String           @id @default(cuid())
+  userId           String
+  eventTaskId      String
+  type             NotificationType
+  deduplicationKey String?          @unique
+  title            String
+  message          String
+  readAt           DateTime?
+  createdAt        DateTime         @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventTask EventTask @relation(fields: [eventTaskId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+  @@index([eventTaskId])
+  @@index([eventTaskId, type])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  entityType String
+  entityId   String
+  action     String
+  oldValue   Json?
+  newValue   Json?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId, createdAt])
+  @@index([userId, createdAt])
+}

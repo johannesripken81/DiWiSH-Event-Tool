@@ -1,0 +1,5 @@
+.next
+.next-*
+.tmp
+node_modules
+package-lock.json

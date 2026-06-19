@@ -1,0 +1,126 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-50: #f0f6fb;
+  --color-brand-100: #dceaf5;
+  --color-brand-200: #bad5e9;
+  --color-brand-300: #8bb8d8;
+  --color-brand-400: #5595c3;
+  --color-brand-500: #3478aa;
+  --color-brand-600: #245f8e;
+  --color-brand-700: #1d4d74;
+  --color-brand-800: #193f5f;
+  --color-brand-900: #123452;
+  --color-brand-950: #08233c;
+
+  --color-accent-50: #fff1f2;
+  --color-accent-100: #ffe1e3;
+  --color-accent-500: #d92d3b;
+  --color-accent-600: #bf1f2e;
+  --color-accent-700: #9f1c28;
+
+  --color-surface: #f6f8fa;
+  --color-ink: #17212b;
+  --color-muted: #5f6f7e;
+
+  --font-sans:
+    "Inter", "Aptos", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+  --shadow-card: 0 1px 2px rgb(15 42 67 / 6%), 0 8px 24px rgb(15 42 67 / 5%);
+}
+
+:root {
+  --app-primary: #123452;
+  --app-primary-hover: #1d4d74;
+  --app-accent: #d92d3b;
+  --app-background: #f6f8fa;
+  --app-surface: #ffffff;
+  --app-border: #dfe6ec;
+  --status-success: #168653;
+  --status-warning: #d29b16;
+  --status-danger: #d92d3b;
+  --status-info: #3478aa;
+  --status-neutral: #6b7785;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--app-background);
+}
+
+body {
+  margin: 0;
+  background: var(--app-background);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  text-rendering: optimizeLegibility;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: var(--color-brand-200);
+  color: var(--color-brand-950);
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-brand-300);
+  outline-offset: 2px;
+}
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+
+  body {
+    background: white;
+  }
+
+  .app-sidebar,
+  .app-mobile-header,
+  .print-hidden {
+    display: none !important;
+  }
+
+  .app-content {
+    padding-left: 0 !important;
+  }
+
+  .app-main {
+    max-width: none !important;
+    min-height: auto !important;
+    padding: 0 !important;
+  }
+
+  .event-day-view {
+    color: #17212b;
+  }
+
+  .event-day-header {
+    background: #123452 !important;
+    color: white !important;
+    print-color-adjust: exact;
+  }
+
+  .event-day-schedule {
+    margin-top: 6mm !important;
+  }
+
+  .event-day-item {
+    break-inside: avoid;
+    box-shadow: none !important;
+    print-color-adjust: exact;
+  }
+
+  .event-day-footer {
+    display: block !important;
+  }
+}
