@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "tsx --test src/lib/audit-log.test.ts src/lib/password.test.ts src/lib/permissions.test.ts src/modules/tasks/reverse-planning.test.ts src/modules/events/template-tasks.test.ts src/modules/events/readiness.test.ts src/modules/events/metrics.test.ts src/modules/communications/metrics.test.ts src/modules/run-of-show/schedule.test.ts src/modules/evaluations/metrics.test.ts src/modules/participants/metrics.test.ts src/modules/notifications/due-notifications.test.ts",
+    "test": "tsx --test src/lib/audit-log.test.ts src/lib/password.test.ts src/lib/permissions.test.ts src/modules/tasks/reverse-planning.test.ts src/modules/events/template-tasks.test.ts src/modules/events/readiness.test.ts src/modules/events/metrics.test.ts src/modules/communications/metrics.test.ts src/modules/evaluations/metrics.test.ts src/modules/participants/csv-import.test.ts src/modules/notifications/due-notifications.test.ts",
     "typecheck": "next typegen && tsc --noEmit",
     "quality": "npm run db:validate && npm run typecheck && npm run lint && npm test && npm run build",
     "postinstall": "prisma generate",

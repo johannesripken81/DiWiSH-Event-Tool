@@ -18,7 +18,7 @@ schaffen:
 - klare Verantwortlichkeiten, Prüfungen und Freigaben
 - automatische Fälligkeiten relativ zum Eventdatum
 - transparente Risiken, Deadlines und Event-Readiness
-- Kommunikations-, Teilnehmer- und Ablaufplanung
+- Kommunikationsplanung und einfache Teilnehmer-/Kontaktliste
 - strukturierte Evaluation und dokumentierte Learnings
 - vorbereitete Anbindung an Microsoft Planner und Power Automate
 
@@ -322,16 +322,9 @@ Kennzahlen wie Klicks, Anmeldungen oder Reichweite sind abbildbar.
 
 ### Teilnehmermanagement
 
-Die Teilnehmerliste erfasst Organisation, Rolle, Zielgruppentyp, Einladungs-
-und Teilnahmestatus, No-Show-Risiko, Interessen, Matchmaking und Follow-up.
-Angemeldete, Teilnehmende, No-Show-Quote und offene Follow-ups erscheinen im
-Event-Cockpit.
-
-### Ablauf und Regieplan
-
-Programmpunkte werden chronologisch mit Ziel, Methode, Verantwortlichkeit,
-Material, Risiko und Moderationshinweis geführt. Eine reduzierte,
-exportfreundliche Eventtag-Ansicht ist enthalten.
+Die Teilnehmerliste ist bewusst schlank gehalten. Erfasst werden Vorname,
+Nachname, E-Mail-Adresse und Organisation. Zusätzlich gibt es einen CSV-Import
+mit Spaltenzuordnung für Vorname, Nachname, E-Mail und Organisation.
 
 ### Evaluation und Wirkung
 

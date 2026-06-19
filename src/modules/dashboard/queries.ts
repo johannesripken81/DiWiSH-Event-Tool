@@ -29,7 +29,6 @@ type DashboardQueryEvent = {
   eventDate: string;
   id: string;
   location: string | null;
-  status: EventStatus;
   title: string;
 };
 
@@ -111,7 +110,7 @@ export async function getDashboardData({
         (
           SELECT json_agg(event_rows ORDER BY event_rows."eventDate" ASC)
           FROM (
-            SELECT e.id, e.title, e.location, e."eventDate", e.status::text AS status
+            SELECT e.id, e.title, e.location, e."eventDate"
             FROM "Event" e
             WHERE e."eventDate" >= ${today}
               AND e.status::text NOT IN (${Prisma.join([

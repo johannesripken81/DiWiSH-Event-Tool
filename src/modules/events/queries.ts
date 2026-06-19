@@ -1,4 +1,4 @@
-import { EventStatus, Prisma, TaskStatus } from "@/generated/prisma/client";
+import { Prisma, TaskStatus } from "@/generated/prisma/client";
 import { requireEventReadAccess } from "@/lib/current-user";
 import { getDb } from "@/lib/db";
 import {
@@ -10,12 +10,10 @@ import {
 } from "@/modules/events/metrics";
 import { compareTasksByDueDate } from "@/modules/events/presentation";
 import { calculateReadinessScore } from "@/modules/events/readiness";
-import { calculateParticipantMetrics } from "@/modules/participants/metrics";
 
 export type EventPeriod = "all" | "upcoming" | "next30" | "next90" | "past";
 
 export type EventListFilters = {
-  status?: EventStatus;
   period: EventPeriod;
   format?: string;
   eventLeadId?: string;
@@ -84,10 +82,7 @@ const eventDetailInclude = {
   evaluation: true,
   participants: {
     select: {
-      registered: true,
-      attended: true,
-      followUpNeeded: true,
-      followUpStatus: true,
+      id: true,
     },
   },
 } satisfies Prisma.EventInclude;
@@ -118,7 +113,6 @@ export async function getEventListData(filters: EventListFilters) {
   const db = getDb();
   const today = getTodayUtc();
   const where: Prisma.EventWhereInput = {
-    status: filters.status,
     eventDate: getPeriodFilter(filters.period, today),
     format: filters.format,
     eventLeadId: filters.eventLeadId,
@@ -214,7 +208,7 @@ export async function getEventCockpit(id: string) {
   return {
     event,
     metrics: calculateTaskMetrics(event.tasks, today),
-    participantMetrics: calculateParticipantMetrics(event.participants),
+    participantMetrics: { total: event.participants.length },
     readiness: calculateReadinessScore(event, event.tasks),
     nextDeadlines,
     overdueTasks,
@@ -227,12 +221,6 @@ export async function getEventCockpit(id: string) {
           : event.title,
     })),
   };
-}
-
-export function isEventStatus(value: string | undefined): value is EventStatus {
-  return value
-    ? Object.values(EventStatus).includes(value as EventStatus)
-    : false;
 }
 
 export function isEventPeriod(value: string | undefined): value is EventPeriod {

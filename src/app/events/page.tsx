@@ -1,26 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import {
-  Card,
-  EmptyState,
-  PageHeader,
-  PrimaryLink,
-  StatusBadge,
-} from "@/components/ui";
+import { Card, EmptyState, PageHeader, PrimaryLink } from "@/components/ui";
 import { getCurrentUser } from "@/lib/current-user";
 import { hasPermission, Permission } from "@/lib/permissions";
 import {
   getEventListData,
   isEventPeriod,
-  isEventStatus,
   type EventPeriod,
 } from "@/modules/events/queries";
-import {
-  eventStatusOptions,
-  formatDate,
-  getEventStatusPresentation,
-} from "@/modules/events/presentation";
+import { formatDate } from "@/modules/events/presentation";
 
 export const metadata: Metadata = {
   title: "Events",
@@ -78,15 +67,12 @@ export default async function EventsPage({
   const params = await searchParams;
   const currentUser = await getCurrentUser();
   const canManageEvents = hasPermission(currentUser, Permission.MANAGE_EVENTS);
-  const statusParam = getParam(params, "status");
   const periodParam = getParam(params, "period");
   const formatParam = getParam(params, "format");
   const eventLeadId = getParam(params, "eventLeadId");
   const criticalOnly = getParam(params, "critical") === "true";
-  const status = isEventStatus(statusParam) ? statusParam : undefined;
   const period = isEventPeriod(periodParam) ? periodParam : "all";
   const data = await getEventListData({
-    status,
     period,
     format: formatParam || undefined,
     eventLeadId: eventLeadId || undefined,
@@ -95,7 +81,6 @@ export default async function EventsPage({
   const deleted = getParam(params, "deleted") === "1";
   const deleteError = getParam(params, "delete");
   const hasActiveFilters =
-    Boolean(status) ||
     period !== "all" ||
     Boolean(formatParam) ||
     Boolean(eventLeadId) ||
@@ -133,16 +118,7 @@ export default async function EventsPage({
       ) : null}
 
       <Card className="mb-5 p-4 sm:p-5">
-        <form action="/events" className="grid gap-4 xl:grid-cols-5">
-          <FilterSelect label="Status" name="status" value={status}>
-            <option value="">Alle Status</option>
-            {eventStatusOptions.map((option) => (
-              <option key={option} value={option}>
-                {getEventStatusPresentation(option).label}
-              </option>
-            ))}
-          </FilterSelect>
-
+        <form action="/events" className="grid gap-4 xl:grid-cols-4">
           <FilterSelect label="Zeitraum" name="period" value={period}>
             {periodOptions.map((option) => (
               <option key={option.value} value={option.value}>
@@ -236,7 +212,6 @@ export default async function EventsPage({
                   <th className="px-5 py-3">Event</th>
                   <th className="px-4 py-3">Datum</th>
                   <th className="px-4 py-3">Format</th>
-                  <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Event Lead</th>
                   <th className="px-4 py-3">Fortschritt</th>
                   <th className="px-4 py-3 text-right">Offen</th>
@@ -245,74 +220,65 @@ export default async function EventsPage({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {data.events.map((event) => {
-                  const statusView = getEventStatusPresentation(event.status);
-
-                  return (
-                    <tr className="hover:bg-brand-50/40" key={event.id}>
-                      <td className="px-5 py-4">
-                        <Link
-                          className="text-brand-900 hover:text-brand-700 font-bold"
-                          href={`/events/${event.id}`}
-                        >
-                          {event.title}
-                        </Link>
-                      </td>
-                      <td className="px-4 py-4 font-medium text-slate-700">
-                        {formatDate(event.eventDate)}
-                      </td>
-                      <td className="px-4 py-4 text-slate-600">
-                        {event.format ?? "Nicht festgelegt"}
-                      </td>
-                      <td className="px-4 py-4">
-                        <StatusBadge color={statusView.color}>
-                          {statusView.label}
-                        </StatusBadge>
-                      </td>
-                      <td className="px-4 py-4 text-slate-600">
-                        {event.eventLead?.name ?? "Nicht zugewiesen"}
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex min-w-32 items-center gap-3">
-                          <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200">
-                            <div
-                              className="bg-brand-700 h-full rounded-full"
-                              style={{ width: `${event.metrics.progress}%` }}
-                            />
-                          </div>
-                          <span className="w-10 text-right font-bold text-slate-700">
-                            {event.metrics.progress}%
-                          </span>
+                {data.events.map((event) => (
+                  <tr className="hover:bg-brand-50/40" key={event.id}>
+                    <td className="px-5 py-4">
+                      <Link
+                        className="text-brand-900 hover:text-brand-700 font-bold"
+                        href={`/events/${event.id}`}
+                      >
+                        {event.title}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-4 font-medium text-slate-700">
+                      {formatDate(event.eventDate)}
+                    </td>
+                    <td className="px-4 py-4 text-slate-600">
+                      {event.format ?? "Nicht festgelegt"}
+                    </td>
+                    <td className="px-4 py-4 text-slate-600">
+                      {event.eventLead?.name ?? "Nicht zugewiesen"}
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex min-w-32 items-center gap-3">
+                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200">
+                          <div
+                            className="bg-brand-700 h-full rounded-full"
+                            style={{ width: `${event.metrics.progress}%` }}
+                          />
                         </div>
-                      </td>
-                      <td className="px-4 py-4 text-right font-bold text-slate-700">
-                        {event.metrics.openTasks}
-                      </td>
-                      <td className="px-4 py-4 text-right">
-                        <span
-                          className={
-                            event.metrics.overdueTasks > 0
-                              ? "font-bold text-red-700"
-                              : "text-slate-500"
-                          }
-                        >
-                          {event.metrics.overdueTasks}
+                        <span className="w-10 text-right font-bold text-slate-700">
+                          {event.metrics.progress}%
                         </span>
-                      </td>
-                      <td className="px-5 py-4 text-right">
-                        <span
-                          className={
-                            event.metrics.criticalOpenTasks > 0
-                              ? "inline-flex min-w-7 justify-center rounded-full bg-red-50 px-2 py-1 font-bold text-red-700"
-                              : "text-slate-500"
-                          }
-                        >
-                          {event.metrics.criticalOpenTasks}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 text-right font-bold text-slate-700">
+                      {event.metrics.openTasks}
+                    </td>
+                    <td className="px-4 py-4 text-right">
+                      <span
+                        className={
+                          event.metrics.overdueTasks > 0
+                            ? "font-bold text-red-700"
+                            : "text-slate-500"
+                        }
+                      >
+                        {event.metrics.overdueTasks}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 text-right">
+                      <span
+                        className={
+                          event.metrics.criticalOpenTasks > 0
+                            ? "inline-flex min-w-7 justify-center rounded-full bg-red-50 px-2 py-1 font-bold text-red-700"
+                            : "text-slate-500"
+                        }
+                      >
+                        {event.metrics.criticalOpenTasks}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

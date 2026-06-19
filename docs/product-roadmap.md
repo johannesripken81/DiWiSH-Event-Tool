@@ -28,8 +28,7 @@ Der aktuelle MVP enthält:
 - Readiness Score mit Hinweisen auf noch nicht erfüllte Bereiche
 - interner Benachrichtigungsgenerator mit Duplikatschutz
 - Kommunikationsplan pro Event
-- Teilnehmermanagement mit No-Show- und Follow-up-Kennzahlen
-- Ablauf- und Regieplan mit Eventtag-Ansicht
+- schlankes Teilnehmermanagement mit CSV-Import und Spaltenzuordnung
 - Evaluation, Wirkungskennzahlen und qualitative Learnings
 - einfacher Login mit Name/E-Mail und Passwort
 - zentrales Rollen- und Rechtekonzept mit serverseitigen Prüfungen
@@ -143,7 +142,6 @@ Geplante Exporte:
 
 - Event-Steckbrief als PDF
 - Aufgabenplan als Excel oder CSV
-- Regieplan als druckbares PDF
 - Teilnehmerliste als Excel oder CSV
 - Evaluation und Learnings als PDF
 - Kalenderdaten als ICS
@@ -156,7 +154,6 @@ Verwendungszweck berücksichtigen.
 
 Der erste Schwerpunkt liegt auf der praktischen Nutzung am Eventtag:
 
-- kompakte Regieplan-Ansicht für Smartphone und Tablet
 - große, schnell erreichbare Statusaktionen
 - Aufgabenansicht für die aktuell verantwortliche Person
 - robuste Tabellenalternativen in Kartenform

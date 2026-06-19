@@ -60,8 +60,8 @@ function DeleteEventPanel({
         <h2 className="font-bold text-red-800">Event löschen</h2>
         <p className="mt-1 text-xs leading-5 text-red-700">
           Löschen entfernt dieses Event inklusive Aufgaben, Kommunikationsplan,
-          Regieplan, Evaluation und Teilnehmenden. Diese Aktion ist nicht
-          rückgängig zu machen.
+          Evaluation und Teilnehmenden. Diese Aktion ist nicht rückgängig zu
+          machen.
         </p>
       </div>
       <div className="p-5">

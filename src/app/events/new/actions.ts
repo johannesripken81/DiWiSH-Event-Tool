@@ -79,7 +79,6 @@ function getEventAuditValue(event: EventAuditSource): AuditSnapshot {
     participantGoal: event.participantGoal,
     registrationUrl: event.registrationUrl,
     feedbackFormUrl: event.feedbackFormUrl,
-    status: event.status,
   };
 }
 

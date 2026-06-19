@@ -3,17 +3,20 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { FollowUpStatus } from "@/generated/prisma/enums";
 import { getCurrentUser } from "@/lib/current-user";
 import { getDb } from "@/lib/db";
 import { assertPermission, hasPermission, Permission } from "@/lib/permissions";
 import {
-  checkboxToBoolean,
+  combineParticipantName,
   getParticipantFormValues,
   optionalParticipantValue,
   participantFormSchema,
   type ParticipantFormState,
 } from "@/modules/participants/participant-form";
+import {
+  mapParticipantCsvRows,
+  type ParticipantCsvMapping,
+} from "@/modules/participants/csv-import";
 
 function revalidateParticipantViews(eventId: string) {
   revalidatePath(`/events/${eventId}`);
@@ -75,25 +78,10 @@ async function validateParticipantForm(formData: FormData): Promise<
 function getParticipantData(
   input: ReturnType<typeof participantFormSchema.parse>,
 ) {
-  const followUpNeeded = checkboxToBoolean(input.followUpNeeded);
-
   return {
-    name: input.name,
+    name: combineParticipantName(input.firstName, input.lastName),
     organization: optionalParticipantValue(input.organization),
-    role: optionalParticipantValue(input.role),
     email: input.email.toLowerCase(),
-    targetGroupType: input.targetGroupType,
-    status: input.status,
-    personallyInvited: checkboxToBoolean(input.personallyInvited),
-    registered: checkboxToBoolean(input.registered),
-    attended: checkboxToBoolean(input.attended),
-    noShowRisk: input.noShowRisk,
-    interestTopic: optionalParticipantValue(input.interestTopic),
-    matchmakingPotential: input.matchmakingPotential,
-    followUpNeeded,
-    followUpStatus: followUpNeeded
-      ? input.followUpStatus
-      : FollowUpStatus.NOT_REQUIRED,
   };
 }
 
@@ -103,12 +91,7 @@ function getParticipantAuditValue(
   return {
     name: participant.name,
     email: participant.email,
-    targetGroupType: participant.targetGroupType,
-    status: participant.status,
-    registered: participant.registered,
-    attended: participant.attended,
-    followUpNeeded: participant.followUpNeeded,
-    followUpStatus: participant.followUpStatus,
+    organization: participant.organization,
   };
 }
 
@@ -237,12 +220,7 @@ export async function updateParticipantAction(
           oldValue: {
             name: existingParticipant.name,
             email: existingParticipant.email,
-            targetGroupType: existingParticipant.targetGroupType,
-            status: existingParticipant.status,
-            registered: existingParticipant.registered,
-            attended: existingParticipant.attended,
-            followUpNeeded: existingParticipant.followUpNeeded,
-            followUpStatus: existingParticipant.followUpStatus,
+            organization: existingParticipant.organization,
           },
           newValue: getParticipantAuditValue(participantData),
         },
@@ -260,6 +238,86 @@ export async function updateParticipantAction(
 
   revalidateParticipantViews(input.eventId);
   redirect(`/events/${input.eventId}/participants`);
+}
+
+export async function importParticipantsCsvAction(formData: FormData) {
+  const eventId = formData.get("eventId");
+  const csvFile = formData.get("csvFile");
+  const mapping: ParticipantCsvMapping = {
+    firstName: String(formData.get("firstNameColumn") ?? ""),
+    lastName: String(formData.get("lastNameColumn") ?? ""),
+    email: String(formData.get("emailColumn") ?? ""),
+    organization: String(formData.get("organizationColumn") ?? ""),
+  };
+
+  if (typeof eventId !== "string" || !eventId) {
+    redirect("/events");
+  }
+
+  const currentUser = await getCurrentUser();
+  assertPermission(currentUser, Permission.MANAGE_EVENT_OPERATIONS);
+
+  if (!(csvFile instanceof File) || csvFile.size === 0) {
+    redirect(`/events/${eventId}/participants?import=missing-file`);
+  }
+
+  const text = await csvFile.text();
+  const parsed = mapParticipantCsvRows(text, mapping);
+
+  if (parsed.rows.length === 0) {
+    redirect(`/events/${eventId}/participants?import=empty`);
+  }
+
+  const db = getDb();
+  const event = await db.event.findUnique({
+    where: { id: eventId },
+    select: { id: true },
+  });
+
+  if (!event) {
+    redirect("/events");
+  }
+
+  let created = 0;
+  let updated = 0;
+
+  for (const row of parsed.rows) {
+    const existing = await db.eventParticipant.findUnique({
+      where: {
+        eventId_email: {
+          eventId,
+          email: row.email,
+        },
+      },
+      select: { id: true },
+    });
+
+    if (existing) {
+      await db.eventParticipant.update({
+        where: { id: existing.id },
+        data: {
+          name: row.name,
+          organization: row.organization,
+        },
+      });
+      updated += 1;
+    } else {
+      await db.eventParticipant.create({
+        data: {
+          eventId,
+          name: row.name,
+          email: row.email,
+          organization: row.organization,
+        },
+      });
+      created += 1;
+    }
+  }
+
+  revalidateParticipantViews(eventId);
+  redirect(
+    `/events/${eventId}/participants?imported=${created}&updated=${updated}&skipped=${parsed.skipped}`,
+  );
 }
 
 export async function deleteParticipantAction(formData: FormData) {
@@ -299,12 +357,7 @@ export async function deleteParticipantAction(formData: FormData) {
         oldValue: {
           name: participant.name,
           email: participant.email,
-          targetGroupType: participant.targetGroupType,
-          status: participant.status,
-          registered: participant.registered,
-          attended: participant.attended,
-          followUpNeeded: participant.followUpNeeded,
-          followUpStatus: participant.followUpStatus,
+          organization: participant.organization,
         },
       },
     }),

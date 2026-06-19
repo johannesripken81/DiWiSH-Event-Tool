@@ -6,7 +6,6 @@ import {
   PageHeader,
   PrimaryLink,
   StatusBadge,
-  type StatusColor,
 } from "@/components/ui";
 import { Icon, type IconName } from "@/components/icons";
 import { requireEventReadAccess } from "@/lib/current-user";
@@ -14,7 +13,6 @@ import { getDashboardData } from "@/modules/dashboard/queries";
 import { getTodayUtc } from "@/modules/events/metrics";
 import {
   formatDate,
-  getEventStatusPresentation,
   getPhaseLabel,
   getTaskPriorityPresentation,
 } from "@/modules/events/presentation";
@@ -161,7 +159,7 @@ export default async function DashboardPage({
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           color="bg-blue-50 text-blue-700"
-          hint="Entwurf, Planung, Durchführung oder Nachbereitung"
+          hint="Events in der aktuellen Arbeitsliste"
           icon="events"
           label="Aktive Events"
           value={activeEvents}
@@ -341,32 +339,25 @@ export default async function DashboardPage({
             </div>
           ) : (
             <div className="divide-y divide-slate-100 px-5">
-              {upcomingEvents.map((event) => {
-                const status = getEventStatusPresentation(event.status);
-
-                return (
-                  <Link
-                    className="flex items-center gap-4 py-4"
-                    href={`/events/${event.id}`}
-                    key={event.id}
-                  >
-                    <div className="bg-brand-50 text-brand-800 grid size-12 shrink-0 place-items-center rounded-lg text-center text-[10px] leading-3 font-extrabold tracking-wide">
-                      {getDateTile(event.eventDate)}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-bold text-slate-800">
-                        {event.title}
-                      </p>
-                      <p className="text-muted mt-1 text-xs">
-                        {event.location ?? "Location offen"}
-                      </p>
-                    </div>
-                    <StatusBadge color={status.color as StatusColor}>
-                      {status.label}
-                    </StatusBadge>
-                  </Link>
-                );
-              })}
+              {upcomingEvents.map((event) => (
+                <Link
+                  className="flex items-center gap-4 py-4"
+                  href={`/events/${event.id}`}
+                  key={event.id}
+                >
+                  <div className="bg-brand-50 text-brand-800 grid size-12 shrink-0 place-items-center rounded-lg text-center text-[10px] leading-3 font-extrabold tracking-wide">
+                    {getDateTile(event.eventDate)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold text-slate-800">
+                      {event.title}
+                    </p>
+                    <p className="text-muted mt-1 text-xs">
+                      {event.location ?? "Location offen"}
+                    </p>
+                  </div>
+                </Link>
+              ))}
             </div>
           )}
         </Card>

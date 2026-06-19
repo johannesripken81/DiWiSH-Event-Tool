@@ -13,7 +13,6 @@ import { getEventCockpit } from "@/modules/events/queries";
 import {
   formatDate,
   formatEventDateTime,
-  getEventStatusPresentation,
   getPhaseLabel,
   getSafeExternalUrl,
   getTaskPriorityPresentation,
@@ -382,36 +381,13 @@ function ParticipantCard({
     Awaited<ReturnType<typeof getEventCockpit>>
   >["participantMetrics"];
 }) {
-  const items = [
-    {
-      label: "Angemeldet",
-      value: metrics.registered.toLocaleString("de-DE"),
-      tone: "text-blue-700",
-    },
-    {
-      label: "Teilgenommen",
-      value: metrics.attended.toLocaleString("de-DE"),
-      tone: "text-emerald-700",
-    },
-    {
-      label: "No-Show-Quote",
-      value: formatNoShowRate(metrics.noShowRate),
-      tone: "text-slate-800",
-    },
-    {
-      label: "Follow-ups offen",
-      value: metrics.openFollowUps.toLocaleString("de-DE"),
-      tone: metrics.openFollowUps > 0 ? "text-red-700" : "text-emerald-700",
-    },
-  ];
-
   return (
     <Card className="mt-6 overflow-hidden">
       <div className="flex flex-col justify-between gap-4 border-b border-slate-200 px-5 py-4 sm:flex-row sm:items-center">
         <div>
           <h2 className="text-brand-950 font-bold">Teilnehmermanagement</h2>
           <p className="text-muted mt-1 text-xs">
-            Aktueller Stand aus der Teilnehmerliste
+            Gepflegte Kontakte für dieses Event
           </p>
         </div>
         <Link
@@ -421,20 +397,15 @@ function ParticipantCard({
           Teilnehmerliste öffnen
         </Link>
       </div>
-      <div className="grid gap-3 p-5 sm:grid-cols-2 xl:grid-cols-4">
-        {items.map((item) => (
-          <div
-            className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3"
-            key={item.label}
-          >
-            <p className="text-xs font-bold tracking-wide text-slate-500 uppercase">
-              {item.label}
-            </p>
-            <p className={`mt-2 text-2xl font-bold ${item.tone}`}>
-              {item.value}
-            </p>
-          </div>
-        ))}
+      <div className="p-5">
+        <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+          <p className="text-xs font-bold tracking-wide text-slate-500 uppercase">
+            Personen gesamt
+          </p>
+          <p className="text-brand-950 mt-2 text-2xl font-bold">
+            {metrics.total.toLocaleString("de-DE")}
+          </p>
+        </div>
       </div>
     </Card>
   );
@@ -588,7 +559,6 @@ export default async function EventCockpitPage({
   const manualOverrideCount = event.tasks.filter(
     (task) => task.offsetDays !== null && task.isDueDateManuallyOverridden,
   ).length;
-  const status = getEventStatusPresentation(event.status);
   const canManageEvents = hasPermission(currentUser, Permission.MANAGE_EVENTS);
   const links = [
     ["Eventlink", event.registrationUrl],
@@ -620,13 +590,8 @@ export default async function EventCockpitPage({
       href: `/events/${event.id}/communications`,
     },
     {
-      title: "Regieplan öffnen",
-      description: "Ablauf, Verantwortlichkeiten und Eventtag-Ansicht",
-      href: `/events/${event.id}/run-of-show`,
-    },
-    {
       title: "Teilnehmende verwalten",
-      description: "Liste, Status, Zielgruppen und Follow-ups",
+      description: "Kontaktliste und CSV-Import",
       href: `/events/${event.id}/participants`,
     },
     {
@@ -654,7 +619,6 @@ export default async function EventCockpitPage({
         <div className="grid gap-5 p-5 xl:grid-cols-[1fr_280px] xl:p-6">
           <div>
             <div className="mb-3 flex flex-wrap items-center gap-3">
-              <StatusBadge color={status.color}>{status.label}</StatusBadge>
               <span className="text-sm font-medium text-slate-500">
                 {event.format ?? "Format nicht festgelegt"}
               </span>

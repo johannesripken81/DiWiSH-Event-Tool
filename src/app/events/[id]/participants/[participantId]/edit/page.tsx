@@ -4,7 +4,10 @@ import { notFound, redirect } from "next/navigation";
 import { PageHeader } from "@/components/ui";
 import { getCurrentUser } from "@/lib/current-user";
 import { hasPermission, Permission } from "@/lib/permissions";
-import type { ParticipantFormValues } from "@/modules/participants/participant-form";
+import {
+  splitParticipantName,
+  type ParticipantFormValues,
+} from "@/modules/participants/participant-form";
 import { getParticipantEditorData } from "@/modules/participants/queries";
 
 import { ParticipantForm } from "../../participant-form";
@@ -32,23 +35,14 @@ export default async function EditParticipantPage({
     notFound();
   }
 
+  const name = splitParticipantName(participant.name);
   const initialValues: ParticipantFormValues = {
     eventId: event.id,
     participantId: participant.id,
-    name: participant.name,
-    organization: participant.organization ?? "",
-    role: participant.role ?? "",
+    firstName: name.firstName,
+    lastName: name.lastName,
     email: participant.email,
-    targetGroupType: participant.targetGroupType,
-    status: participant.status,
-    personallyInvited: participant.personallyInvited ? "on" : "",
-    registered: participant.registered ? "on" : "",
-    attended: participant.attended ? "on" : "",
-    noShowRisk: participant.noShowRisk,
-    interestTopic: participant.interestTopic ?? "",
-    matchmakingPotential: participant.matchmakingPotential,
-    followUpNeeded: participant.followUpNeeded ? "on" : "",
-    followUpStatus: participant.followUpStatus,
+    organization: participant.organization ?? "",
   };
 
   return (
