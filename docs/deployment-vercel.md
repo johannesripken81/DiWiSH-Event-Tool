@@ -183,3 +183,27 @@ Offizielle Doku:
 - [ ] Pull Requests erzeugen Preview Deployments.
 - [ ] GitHub Actions laufen erfolgreich.
 - [ ] Niemand nutzt Preview gegen Live-Daten.
+
+## Fehler: Login-Seite lädt nicht
+
+Wenn Vercel auf `/login` nur **This page couldn't load** zeigt:
+
+1. In Vercel das Projekt öffnen.
+2. **Deployments** öffnen.
+3. Das neueste Deployment anklicken.
+4. **Runtime Logs** oder **Functions Logs** öffnen.
+5. Nach dem ersten echten Fehler suchen.
+
+Häufige Ursachen:
+
+- `DATABASE_URL` fehlt in Vercel Production.
+- `DATABASE_URL_UNPOOLED` fehlt in Vercel Production.
+- Die Variablen wurden nur für Preview, aber nicht für Production eingetragen.
+- Nach dem Eintragen der Variablen wurde nicht neu deployed.
+- Die Login-Migration wurde noch nicht auf der Live-Datenbank ausgeführt.
+- Der Neon-Branch ist pausiert oder die Verbindung zeigt auf die falsche
+  Datenbank.
+
+Nach Änderungen an Environment Variables immer ein neues Production Deployment
+starten. Vercel übernimmt neue Variablen nicht rückwirkend in bereits gebaute
+Deployments.

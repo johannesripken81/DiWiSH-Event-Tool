@@ -9,10 +9,29 @@ export function clearCurrentUserCache() {
   // Kept for settings actions that invalidate user-related state.
 }
 
-export const getOptionalCurrentUser = cache(async () => getSessionUser());
+function isNextDynamicServerError(error: unknown) {
+  return (
+    error instanceof Error &&
+    "digest" in error &&
+    (error as Error & { digest?: string }).digest === "DYNAMIC_SERVER_USAGE"
+  );
+}
+
+export const getOptionalCurrentUser = cache(async () => {
+  try {
+    return await getSessionUser();
+  } catch (error) {
+    if (isNextDynamicServerError(error)) {
+      throw error;
+    }
+
+    console.error("Could not load optional current user.", error);
+    return null;
+  }
+});
 
 export const getCurrentUser = cache(async () => {
-  const user = await getOptionalCurrentUser();
+  const user = await getSessionUser();
 
   if (!user) {
     redirect("/login");
