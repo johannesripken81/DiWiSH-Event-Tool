@@ -92,6 +92,8 @@ export default async function EventsPage({
     eventLeadId: eventLeadId || undefined,
     criticalOnly,
   });
+  const deleted = getParam(params, "deleted") === "1";
+  const deleteError = getParam(params, "delete");
   const hasActiveFilters =
     Boolean(status) ||
     period !== "all" ||
@@ -111,6 +113,24 @@ export default async function EventsPage({
         eyebrow="Eventportfolio"
         title="Events"
       />
+
+      {deleted ? (
+        <div
+          className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800"
+          role="status"
+        >
+          Event wurde gelöscht.
+        </div>
+      ) : null}
+
+      {deleteError ? (
+        <div
+          className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800"
+          role="alert"
+        >
+          Das Event konnte nicht gelöscht werden oder existiert nicht mehr.
+        </div>
+      ) : null}
 
       <Card className="mb-5 p-4 sm:p-5">
         <form action="/events" className="grid gap-4 xl:grid-cols-5">

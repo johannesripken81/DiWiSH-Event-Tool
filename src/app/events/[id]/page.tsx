@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { Card, EmptyState, PrimaryLink, StatusBadge } from "@/components/ui";
+import { Card, EmptyState, StatusBadge } from "@/components/ui";
 import { getCurrentUser } from "@/lib/current-user";
 import { hasPermission, Permission } from "@/lib/permissions";
 import { formatNoShowRate } from "@/modules/evaluations/metrics";
@@ -461,6 +461,30 @@ function DetailField({
   );
 }
 
+function ModuleActionLink({
+  title,
+  description,
+  href,
+}: {
+  title: string;
+  description: string;
+  href: string;
+}) {
+  return (
+    <Link
+      className="group hover:border-brand-300 hover:bg-brand-50 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left transition"
+      href={href}
+    >
+      <span className="text-brand-950 group-hover:text-brand-800 block text-sm font-bold">
+        {title}
+      </span>
+      <span className="mt-1 block text-xs leading-5 text-slate-500">
+        {description}
+      </span>
+    </Link>
+  );
+}
+
 function TaskTable({
   tasks,
   emptyTitle,
@@ -577,6 +601,43 @@ export default async function EventCockpitPage({
     .filter(
       (link): link is { label: string; href: string } => link.href !== null,
     );
+  const moduleActions = [
+    canManageEvents
+      ? {
+          title: "Event bearbeiten",
+          description: "Stammdaten, Rollen, Links oder Event löschen",
+          href: `/events/${event.id}/edit`,
+        }
+      : null,
+    {
+      title: "Aufgaben planen",
+      description: "Aufgaben, Status, Verantwortliche und Fälligkeiten",
+      href: `/events/${event.id}/tasks`,
+    },
+    {
+      title: "Kommunikation planen",
+      description: "Kanäle, Botschaften, Freigaben und Kennzahlen",
+      href: `/events/${event.id}/communications`,
+    },
+    {
+      title: "Regieplan öffnen",
+      description: "Ablauf, Verantwortlichkeiten und Eventtag-Ansicht",
+      href: `/events/${event.id}/run-of-show`,
+    },
+    {
+      title: "Teilnehmende verwalten",
+      description: "Liste, Status, Zielgruppen und Follow-ups",
+      href: `/events/${event.id}/participants`,
+    },
+    {
+      title: "Evaluation & Wirkung",
+      description: "Kennzahlen, No-Show-Quote und Learnings",
+      href: `/events/${event.id}/evaluation`,
+    },
+  ].filter(
+    (action): action is { title: string; description: string; href: string } =>
+      action !== null,
+  );
 
   return (
     <>
@@ -589,76 +650,81 @@ export default async function EventCockpitPage({
         </Link>
       </div>
 
-      <div className="mb-7 flex flex-col justify-between gap-4 xl:flex-row xl:items-end">
-        <div>
-          <div className="mb-3 flex flex-wrap items-center gap-3">
-            <StatusBadge color={status.color}>{status.label}</StatusBadge>
-            <span className="text-sm font-medium text-slate-500">
-              {event.format ?? "Format nicht festgelegt"}
-            </span>
-          </div>
-          <h1 className="text-brand-950 max-w-4xl text-2xl font-bold tracking-tight sm:text-3xl">
-            {event.title}
-          </h1>
-          <p className="text-muted mt-2 max-w-3xl text-sm leading-6 sm:text-base">
-            {event.description ??
-              "Für dieses Event ist noch keine Beschreibung hinterlegt."}
-          </p>
-        </div>
-        <div className="flex flex-col gap-3 sm:flex-row xl:flex-col">
-          {canManageEvents ? (
-            <Link
-              className="border-brand-300 text-brand-800 hover:bg-brand-50 inline-flex min-h-10 items-center justify-center rounded-lg border bg-white px-4 py-2 text-sm font-semibold transition"
-              href={`/events/${event.id}/edit`}
-            >
-              Event bearbeiten
-            </Link>
-          ) : null}
-          <PrimaryLink href={`/events/${event.id}/tasks`} icon={false}>
-            Aufgaben planen
-          </PrimaryLink>
-          <Link
-            className="border-brand-300 text-brand-800 hover:bg-brand-50 inline-flex min-h-10 items-center justify-center rounded-lg border bg-white px-4 py-2 text-sm font-semibold transition"
-            href={`/events/${event.id}/communications`}
-          >
-            Kommunikation planen
-          </Link>
-          <Link
-            className="border-brand-300 text-brand-800 hover:bg-brand-50 inline-flex min-h-10 items-center justify-center rounded-lg border bg-white px-4 py-2 text-sm font-semibold transition"
-            href={`/events/${event.id}/run-of-show`}
-          >
-            Regieplan öffnen
-          </Link>
-          <Link
-            className="border-brand-300 text-brand-800 hover:bg-brand-50 inline-flex min-h-10 items-center justify-center rounded-lg border bg-white px-4 py-2 text-sm font-semibold transition"
-            href={`/events/${event.id}/evaluation`}
-          >
-            Evaluation & Wirkung
-          </Link>
-          <Link
-            className="border-brand-300 text-brand-800 hover:bg-brand-50 inline-flex min-h-10 items-center justify-center rounded-lg border bg-white px-4 py-2 text-sm font-semibold transition"
-            href={`/events/${event.id}/participants`}
-          >
-            Teilnehmende verwalten
-          </Link>
-          <div className="shadow-card min-w-48 rounded-xl border border-slate-200 bg-white px-5 py-4">
-            <p className="text-xs font-bold tracking-wide text-slate-500 uppercase">
-              Gesamtfortschritt
-            </p>
-            <div className="mt-2 flex items-center gap-3">
-              <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200">
-                <div
-                  className="bg-brand-700 h-full rounded-full"
-                  style={{ width: `${metrics.progress}%` }}
-                />
-              </div>
-              <span className="text-brand-950 text-xl font-bold">
-                {metrics.progress}%
+      <Card className="mb-6 overflow-hidden">
+        <div className="grid gap-5 p-5 xl:grid-cols-[1fr_280px] xl:p-6">
+          <div>
+            <div className="mb-3 flex flex-wrap items-center gap-3">
+              <StatusBadge color={status.color}>{status.label}</StatusBadge>
+              <span className="text-sm font-medium text-slate-500">
+                {event.format ?? "Format nicht festgelegt"}
               </span>
+            </div>
+            <h1 className="text-brand-950 max-w-5xl text-2xl font-bold tracking-tight sm:text-3xl">
+              {event.title}
+            </h1>
+            <p className="text-muted mt-2 max-w-4xl text-sm leading-6 sm:text-base">
+              {event.description ??
+                "Für dieses Event ist noch keine Beschreibung hinterlegt."}
+            </p>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:max-w-3xl">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <p className="text-xs font-bold tracking-wide text-slate-500 uppercase">
+                  Termin
+                </p>
+                <p className="text-brand-950 mt-1 text-sm font-bold">
+                  {formatEventDateTime(
+                    event.eventDate,
+                    event.startTime,
+                    event.endTime,
+                  )}
+                </p>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <p className="text-xs font-bold tracking-wide text-slate-500 uppercase">
+                  Ort
+                </p>
+                <p className="text-brand-950 mt-1 text-sm font-bold">
+                  {event.location ?? "Nicht hinterlegt"}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row xl:flex-col">
+            <div className="shadow-card min-w-48 rounded-xl border border-slate-200 bg-white px-5 py-4">
+              <p className="text-xs font-bold tracking-wide text-slate-500 uppercase">
+                Gesamtfortschritt
+              </p>
+              <div className="mt-2 flex items-center gap-3">
+                <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200">
+                  <div
+                    className="bg-brand-700 h-full rounded-full"
+                    style={{ width: `${metrics.progress}%` }}
+                  />
+                </div>
+                <span className="text-brand-950 text-xl font-bold">
+                  {metrics.progress}%
+                </span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+
+        <div className="border-t border-slate-200 bg-slate-50/70 p-4 xl:p-5">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 className="text-brand-950 text-sm font-bold">
+              Event-Funktionen
+            </h2>
+            <span className="text-xs font-medium text-slate-500">
+              Alles Wichtige auf einen Blick
+            </span>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {moduleActions.map((action) => (
+              <ModuleActionLink key={action.href} {...action} />
+            ))}
+          </div>
+        </div>
+      </Card>
 
       {planningResult ? (
         <div

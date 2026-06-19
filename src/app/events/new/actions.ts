@@ -376,3 +376,57 @@ export async function updateEventAction(
   revalidatePath(`/events/${input.eventId}`);
   redirect(`/events/${input.eventId}`);
 }
+
+export async function deleteEventAction(formData: FormData) {
+  const eventId = formData.get("eventId");
+  const confirmationTitle = formData.get("confirmationTitle");
+  const currentUser = await getCurrentUser();
+
+  if (typeof eventId !== "string" || !eventId) {
+    redirect("/events?delete=invalid");
+  }
+
+  if (!hasPermission(currentUser, Permission.MANAGE_EVENTS)) {
+    redirect(`/events/${eventId}/edit?delete=denied`);
+  }
+
+  const db = getDb();
+  const event = await db.event.findUnique({
+    where: { id: eventId },
+    include: eventUserInclude,
+  });
+
+  if (!event) {
+    redirect("/events?delete=not-found");
+  }
+
+  if (
+    typeof confirmationTitle !== "string" ||
+    confirmationTitle.trim() !== event.title
+  ) {
+    redirect(`/events/${event.id}/edit?delete=confirm`);
+  }
+
+  try {
+    await db.$transaction(async (transaction) => {
+      await createAuditLog(transaction, {
+        userId: currentUser.id,
+        entityType: "Event",
+        entityId: event.id,
+        action: AuditAction.EVENT_DELETED,
+        oldValue: getEventAuditValue(event),
+      });
+
+      await transaction.event.delete({
+        where: { id: event.id },
+      });
+    });
+  } catch (error) {
+    console.error("Failed to delete event", error);
+    redirect(`/events/${event.id}/edit?delete=failed`);
+  }
+
+  revalidatePath("/");
+  revalidatePath("/events");
+  redirect("/events?deleted=1");
+}

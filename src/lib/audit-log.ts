@@ -3,6 +3,7 @@ import { Prisma } from "@/generated/prisma/client";
 export const AuditAction = {
   EVENT_CREATED: "EVENT_CREATED",
   EVENT_UPDATED: "EVENT_UPDATED",
+  EVENT_DELETED: "EVENT_DELETED",
   TASK_CREATED: "TASK_CREATED",
   TASK_UPDATED: "TASK_UPDATED",
   TASK_STATUS_CHANGED: "TASK_STATUS_CHANGED",

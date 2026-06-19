@@ -18,6 +18,7 @@ const actionLabels: Record<string, string> = {
   DUE_DATE_RECALCULATED: "Fälligkeit neu berechnet",
   EVENT_CREATED: "Event erstellt",
   EVENT_UPDATED: "Event geändert",
+  EVENT_DELETED: "Event gelöscht",
   TASK_CREATED: "Aufgabe erstellt",
   TASK_UPDATED: "Aufgabe geändert",
   TASK_STATUS_CHANGED: "Status geändert",
