@@ -26,6 +26,7 @@ const actionLabels: Record<string, string> = {
   TASK_RESPONSIBLE_CHANGED: "Verantwortliche Person geändert",
   TASK_APPROVED: "Prüfung bestätigt",
   TASK_COMPLETED: "Aufgabe erledigt",
+  PARTICIPANTS_IMPORTED: "Teilnehmende importiert",
 };
 
 const fieldLabels: Record<string, string> = {
@@ -56,6 +57,9 @@ const fieldLabels: Record<string, string> = {
   approvedByName: "Geprüft durch",
   approvedAt: "Geprüft am",
   completedAt: "Erledigt am",
+  created: "Neu angelegt",
+  updated: "Aktualisiert",
+  skipped: "Übersprungen",
   reason: "Grund",
 };
 

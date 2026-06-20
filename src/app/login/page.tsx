@@ -24,6 +24,13 @@ function getMessage(query: SearchParams) {
     } as const;
   }
 
+  if (firstValue(query.error) === "rate-limit") {
+    return {
+      tone: "red",
+      text: "Zu viele fehlgeschlagene Anmeldeversuche. Bitte warte einige Minuten und versuche es erneut.",
+    } as const;
+  }
+
   if (firstValue(query.loggedOut) === "1") {
     return {
       tone: "green",

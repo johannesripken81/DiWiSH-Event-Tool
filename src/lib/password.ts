@@ -40,13 +40,36 @@ export function verifyPassword(password: string, storedHash: string | null) {
     return false;
   }
 
-  const expectedKey = Buffer.from(hash, "base64url");
-  const derivedKey = scryptSync(password, salt, expectedKey.length, {
+  const parsedOptions = {
     N: Number(n),
     r: Number(r),
     p: Number(p),
-    maxmem: 64 * 1024 * 1024,
-  });
+  };
+
+  if (
+    parsedOptions.N !== scryptOptions.N ||
+    parsedOptions.r !== scryptOptions.r ||
+    parsedOptions.p !== scryptOptions.p
+  ) {
+    return false;
+  }
+
+  const expectedKey = Buffer.from(hash, "base64url");
+
+  if (expectedKey.length !== keyLength) {
+    return false;
+  }
+
+  let derivedKey: Buffer;
+
+  try {
+    derivedKey = scryptSync(password, salt, keyLength, {
+      ...parsedOptions,
+      maxmem: scryptOptions.maxmem,
+    });
+  } catch {
+    return false;
+  }
 
   return (
     expectedKey.length === derivedKey.length &&

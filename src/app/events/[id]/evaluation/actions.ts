@@ -117,6 +117,7 @@ export async function saveEvaluationAction(
 
       await transaction.auditLog.create({
         data: {
+          userId: currentUser.id,
           entityType: "EventEvaluation",
           entityId: evaluation.id,
           action: existingEvaluation ? "UPDATED" : "CREATED",

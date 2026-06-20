@@ -44,6 +44,17 @@ function ImportResult({ query }: { query: SearchParams }) {
     );
   }
 
+  if (importError === "file-too-large") {
+    return (
+      <div
+        className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800"
+        role="alert"
+      >
+        Die CSV-Datei ist zu groß. Bitte maximal 1 MB hochladen.
+      </div>
+    );
+  }
+
   if (imported === 0 && updated === 0 && skipped === 0) {
     return null;
   }

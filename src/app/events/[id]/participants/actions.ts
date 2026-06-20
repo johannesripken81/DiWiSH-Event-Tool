@@ -14,6 +14,7 @@ import {
   type ParticipantFormState,
 } from "@/modules/participants/participant-form";
 import {
+  maxParticipantCsvFileSizeBytes,
   mapParticipantCsvRows,
   type ParticipantCsvMapping,
 } from "@/modules/participants/csv-import";
@@ -144,6 +145,7 @@ export async function createParticipantAction(
 
       await transaction.auditLog.create({
         data: {
+          userId: currentUser.id,
           entityType: "EventParticipant",
           entityId: participant.id,
           action: "CREATED",
@@ -214,6 +216,7 @@ export async function updateParticipantAction(
 
       await transaction.auditLog.create({
         data: {
+          userId: currentUser.id,
           entityType: "EventParticipant",
           entityId: participant.id,
           action: "UPDATED",
@@ -261,6 +264,10 @@ export async function importParticipantsCsvAction(formData: FormData) {
     redirect(`/events/${eventId}/participants?import=missing-file`);
   }
 
+  if (csvFile.size > maxParticipantCsvFileSizeBytes) {
+    redirect(`/events/${eventId}/participants?import=file-too-large`);
+  }
+
   const text = await csvFile.text();
   const parsed = mapParticipantCsvRows(text, mapping);
 
@@ -280,20 +287,53 @@ export async function importParticipantsCsvAction(formData: FormData) {
 
   let created = 0;
   let updated = 0;
+  let skipped = parsed.skipped;
+  const rowsByEmail = new Map<string, (typeof parsed.rows)[number]>();
 
   for (const row of parsed.rows) {
-    const existing = await db.eventParticipant.findUnique({
-      where: {
-        eventId_email: {
-          eventId,
-          email: row.email,
-        },
-      },
-      select: { id: true },
-    });
+    if (rowsByEmail.has(row.email)) {
+      skipped += 1;
+    }
 
-    if (existing) {
-      await db.eventParticipant.update({
+    rowsByEmail.set(row.email, row);
+  }
+
+  const rows = [...rowsByEmail.values()];
+  const existingParticipants = await db.eventParticipant.findMany({
+    where: {
+      eventId,
+      email: { in: rows.map((row) => row.email) },
+    },
+    select: { id: true, email: true },
+  });
+  const existingByEmail = new Map(
+    existingParticipants.map((participant) => [participant.email, participant]),
+  );
+  const rowsToCreate = rows.filter((row) => !existingByEmail.has(row.email));
+  const rowsToUpdate = rows.filter((row) => existingByEmail.has(row.email));
+
+  await db.$transaction(async (transaction) => {
+    if (rowsToCreate.length > 0) {
+      const result = await transaction.eventParticipant.createMany({
+        data: rowsToCreate.map((row) => ({
+          eventId,
+          name: row.name,
+          email: row.email,
+          organization: row.organization,
+        })),
+        skipDuplicates: true,
+      });
+      created = result.count;
+    }
+
+    for (const row of rowsToUpdate) {
+      const existing = existingByEmail.get(row.email);
+
+      if (!existing) {
+        continue;
+      }
+
+      await transaction.eventParticipant.update({
         where: { id: existing.id },
         data: {
           name: row.name,
@@ -301,22 +341,26 @@ export async function importParticipantsCsvAction(formData: FormData) {
         },
       });
       updated += 1;
-    } else {
-      await db.eventParticipant.create({
-        data: {
-          eventId,
-          name: row.name,
-          email: row.email,
-          organization: row.organization,
-        },
-      });
-      created += 1;
     }
-  }
+
+    await transaction.auditLog.create({
+      data: {
+        userId: currentUser.id,
+        entityType: "Event",
+        entityId: eventId,
+        action: "PARTICIPANTS_IMPORTED",
+        newValue: {
+          created,
+          updated,
+          skipped,
+        },
+      },
+    });
+  });
 
   revalidateParticipantViews(eventId);
   redirect(
-    `/events/${eventId}/participants?imported=${created}&updated=${updated}&skipped=${parsed.skipped}`,
+    `/events/${eventId}/participants?imported=${created}&updated=${updated}&skipped=${skipped}`,
   );
 }
 
@@ -351,6 +395,7 @@ export async function deleteParticipantAction(formData: FormData) {
   await db.$transaction([
     db.auditLog.create({
       data: {
+        userId: currentUser.id,
         entityType: "EventParticipant",
         entityId: participant.id,
         action: "DELETED",

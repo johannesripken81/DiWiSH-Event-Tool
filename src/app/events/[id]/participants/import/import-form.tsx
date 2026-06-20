@@ -7,6 +7,7 @@ import { useFormStatus } from "react-dom";
 import { Card } from "@/components/ui";
 import {
   guessParticipantCsvColumn,
+  maxParticipantCsvFileSizeBytes,
   parseParticipantCsvHeaders,
 } from "@/modules/participants/csv-import";
 
@@ -88,6 +89,12 @@ export function ParticipantImportForm({ eventId }: { eventId: string }) {
     if (!file) {
       setHeaders([]);
       setError(null);
+      return;
+    }
+
+    if (file.size > maxParticipantCsvFileSizeBytes) {
+      setHeaders([]);
+      setError("Die CSV-Datei ist zu groß. Bitte maximal 1 MB hochladen.");
       return;
     }
 

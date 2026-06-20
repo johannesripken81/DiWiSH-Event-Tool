@@ -4,18 +4,20 @@ import { getDb } from "@/lib/db";
 export async function getParticipantList(eventId: string) {
   await requireEventReadAccess();
   const db = getDb();
-  const event = await db.event.findUnique({
-    where: { id: eventId },
-    select: {
-      id: true,
-      title: true,
-      eventDate: true,
-    },
-  });
-  const participants = await db.eventParticipant.findMany({
-    where: { eventId },
-    orderBy: [{ name: "asc" }, { organization: "asc" }],
-  });
+  const [event, participants] = await Promise.all([
+    db.event.findUnique({
+      where: { id: eventId },
+      select: {
+        id: true,
+        title: true,
+        eventDate: true,
+      },
+    }),
+    db.eventParticipant.findMany({
+      where: { eventId },
+      orderBy: [{ name: "asc" }, { organization: "asc" }],
+    }),
+  ]);
 
   return {
     event,
@@ -32,21 +34,23 @@ export async function getParticipantEditorData(
 ) {
   await requireEventReadAccess();
   const db = getDb();
-  const event = await db.event.findUnique({
-    where: { id: eventId },
-    select: {
-      id: true,
-      title: true,
-    },
-  });
-  const participant = participantId
-    ? await db.eventParticipant.findFirst({
-        where: {
-          id: participantId,
-          eventId,
-        },
-      })
-    : null;
+  const [event, participant] = await Promise.all([
+    db.event.findUnique({
+      where: { id: eventId },
+      select: {
+        id: true,
+        title: true,
+      },
+    }),
+    participantId
+      ? db.eventParticipant.findFirst({
+          where: {
+            id: participantId,
+            eventId,
+          },
+        })
+      : Promise.resolve(null),
+  ]);
 
   return { event, participant };
 }

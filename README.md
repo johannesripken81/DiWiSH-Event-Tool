@@ -107,6 +107,7 @@ Die erwarteten Variablen stehen ohne echte Zugangsdaten in `.env.example`.
 | `DATABASE_URL`           | Ja      | Gepoolte Neon-Verbindung für die laufende Web-App              |
 | `DATABASE_URL_UNPOOLED`  | Ja      | Direkte Neon-Verbindung für Prisma-Migrationen und Seed        |
 | `APP_SEED_USER_PASSWORD` | Nein    | Startpasswort für Demo-Nutzer beim Seed; lokal frei festlegbar |
+| `DATABASE_POOL_MAX`      | Nein    | Maximale Datenbankverbindungen pro laufender App-Instanz       |
 
 Beispiel mit Platzhaltern:
 
@@ -114,6 +115,7 @@ Beispiel mit Platzhaltern:
 DATABASE_URL="postgresql://USER:PASSWORD@HOST-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=verify-full&channel_binding=require"
 DATABASE_URL_UNPOOLED="postgresql://USER:PASSWORD@HOST.eu-central-1.aws.neon.tech/neondb?sslmode=verify-full&channel_binding=require"
 APP_SEED_USER_PASSWORD="HIER_EIN_SICHERES_STARTPASSWORT_EINTRAGEN"
+DATABASE_POOL_MAX="5"
 ```
 
 ### Datenbank mit Neon einrichten

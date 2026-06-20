@@ -128,23 +128,25 @@ export async function getEventListData(filters: EventListFilters) {
       : undefined,
   };
 
-  const events = await db.event.findMany({
-    where,
-    include: eventListInclude,
-    orderBy: [{ eventDate: "asc" }, { title: "asc" }],
-  });
-  const formatRecords = await db.event.findMany({
-    where: { format: { not: null } },
-    select: { format: true },
-    distinct: ["format"],
-    orderBy: { format: "asc" },
-  });
-  const eventLeads = await db.user.findMany({
-    where: { leadEvents: { some: {} } },
-    select: { id: true, name: true },
-    orderBy: { name: "asc" },
-  });
-  const totalEvents = await db.event.count();
+  const [events, formatRecords, eventLeads, totalEvents] = await Promise.all([
+    db.event.findMany({
+      where,
+      include: eventListInclude,
+      orderBy: [{ eventDate: "asc" }, { title: "asc" }],
+    }),
+    db.event.findMany({
+      where: { format: { not: null } },
+      select: { format: true },
+      distinct: ["format"],
+      orderBy: { format: "asc" },
+    }),
+    db.user.findMany({
+      where: { leadEvents: { some: {} } },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+    db.event.count(),
+  ]);
 
   return {
     events: events.map((event) => ({

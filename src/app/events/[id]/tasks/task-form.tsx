@@ -171,14 +171,10 @@ export function TaskForm({
               </label>
             ) : (
               <div>
-                <FieldLabel>Verantwortlich</FieldLabel>
-                <input
-                  name="responsibleUserId"
-                  type="hidden"
-                  value={state.values.responsibleUserId}
-                />
+                <FieldLabel>Phase</FieldLabel>
+                <input name="phase" type="hidden" value={state.values.phase} />
                 <p className="min-h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">
-                  {responsibleUser?.name ?? "Nicht zugewiesen"}
+                  {getPhaseLabel(state.values.phase)}
                 </p>
               </div>
             )}
@@ -196,14 +192,14 @@ export function TaskForm({
               </label>
             ) : (
               <div>
-                <FieldLabel>Prüfer/in</FieldLabel>
+                <FieldLabel>Fällig am</FieldLabel>
                 <input
-                  name="reviewerUserId"
+                  name="dueDate"
                   type="hidden"
-                  value={state.values.reviewerUserId}
+                  value={state.values.dueDate}
                 />
                 <p className="min-h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">
-                  {reviewerUser?.name ?? "Nicht zugewiesen"}
+                  {state.values.dueDate || "Nicht festgelegt"}
                 </p>
               </div>
             )}
@@ -217,39 +213,67 @@ export function TaskForm({
             </h2>
           </div>
           <div className="grid gap-5 p-5 md:grid-cols-2">
-            <label className="block">
-              <FieldLabel>Verantwortlich</FieldLabel>
-              <select
-                className={inputClass}
-                defaultValue={state.values.responsibleUserId}
-                name="responsibleUserId"
-              >
-                <option value="">Nicht zugewiesen</option>
-                {users.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.name} · {roleLabels[user.role]}
-                  </option>
-                ))}
-              </select>
-              <FieldError name="responsibleUserId" state={state} />
-            </label>
+            {canManageAssignment ? (
+              <label className="block">
+                <FieldLabel>Verantwortlich</FieldLabel>
+                <select
+                  className={inputClass}
+                  defaultValue={state.values.responsibleUserId}
+                  name="responsibleUserId"
+                >
+                  <option value="">Nicht zugewiesen</option>
+                  {users.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.name} · {roleLabels[user.role]}
+                    </option>
+                  ))}
+                </select>
+                <FieldError name="responsibleUserId" state={state} />
+              </label>
+            ) : (
+              <div>
+                <FieldLabel>Verantwortlich</FieldLabel>
+                <input
+                  name="responsibleUserId"
+                  type="hidden"
+                  value={state.values.responsibleUserId}
+                />
+                <p className="min-h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">
+                  {responsibleUser?.name ?? "Nicht zugewiesen"}
+                </p>
+              </div>
+            )}
 
-            <label className="block">
-              <FieldLabel>Prüfer/in</FieldLabel>
-              <select
-                className={inputClass}
-                defaultValue={state.values.reviewerUserId}
-                name="reviewerUserId"
-              >
-                <option value="">Nicht zugewiesen</option>
-                {users.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.name} · {roleLabels[user.role]}
-                  </option>
-                ))}
-              </select>
-              <FieldError name="reviewerUserId" state={state} />
-            </label>
+            {canManageAssignment ? (
+              <label className="block">
+                <FieldLabel>Prüfer/in</FieldLabel>
+                <select
+                  className={inputClass}
+                  defaultValue={state.values.reviewerUserId}
+                  name="reviewerUserId"
+                >
+                  <option value="">Nicht zugewiesen</option>
+                  {users.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.name} · {roleLabels[user.role]}
+                    </option>
+                  ))}
+                </select>
+                <FieldError name="reviewerUserId" state={state} />
+              </label>
+            ) : (
+              <div>
+                <FieldLabel>Prüfer/in</FieldLabel>
+                <input
+                  name="reviewerUserId"
+                  type="hidden"
+                  value={state.values.reviewerUserId}
+                />
+                <p className="min-h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">
+                  {reviewerUser?.name ?? "Nicht zugewiesen"}
+                </p>
+              </div>
+            )}
 
             <label className="block">
               <FieldLabel required>Status</FieldLabel>

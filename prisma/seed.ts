@@ -67,6 +67,14 @@ const users = [
 
 const seedUserPassword =
   process.env.APP_SEED_USER_PASSWORD?.trim() || "EventTool-Start-2026!";
+
+if (
+  !process.env.APP_SEED_USER_PASSWORD?.trim() &&
+  process.env.NODE_ENV === "production"
+) {
+  throw new Error("APP_SEED_USER_PASSWORD muss in Produktion gesetzt sein.");
+}
+
 const seedUserPasswordHash = hashPassword(seedUserPassword);
 
 type SeedTaskTemplate = Omit<

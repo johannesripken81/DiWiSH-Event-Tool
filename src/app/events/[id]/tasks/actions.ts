@@ -510,14 +510,6 @@ export async function approveTaskAction(formData: FormData) {
   const db = getDb();
   const task = await db.eventTask.findFirst({
     where: { id: taskId, eventId },
-    include: {
-      reviewerUser: { select: { id: true, name: true } },
-      event: {
-        select: {
-          eventLead: { select: { id: true, name: true } },
-        },
-      },
-    },
   });
 
   if (!task || !task.approvalRequired || task.approvedAt) {
@@ -527,19 +519,13 @@ export async function approveTaskAction(formData: FormData) {
   const currentUser = await getCurrentUser();
   assertPermission(currentUser, Permission.APPROVE_TASK);
 
-  const approver = task.reviewerUser ?? task.event.eventLead;
-
-  if (!approver) {
-    return;
-  }
-
   const approvedAt = new Date();
 
   await db.$transaction(async (transaction) => {
     await transaction.eventTask.update({
       where: { id: task.id },
       data: {
-        approvedById: approver.id,
+        approvedById: currentUser.id,
         approvedAt,
         ...(task.plannerTaskId
           ? {
@@ -560,7 +546,7 @@ export async function approveTaskAction(formData: FormData) {
         approvedAt: null,
       },
       newValue: {
-        approvedByName: approver.name,
+        approvedByName: currentUser.name,
         approvedAt: approvedAt.toISOString(),
       },
     });

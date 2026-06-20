@@ -8,6 +8,8 @@ import { verifyPassword } from "@/lib/password";
 
 export const sessionCookieName = "diwish_event_session";
 const sessionDurationDays = 30;
+const dummyPasswordHash =
+  "scrypt$16384$8$1$diwish-login-dummy-salt$-WgW_yzn75VvBWn0sz0tzxPQ7ZtnQqPHnS39E3JHLpx57z-0DdOEgbkxqsf7zhl3nvpbqb2l1JBAQiBVG-VDhA";
 
 function getSessionExpiresAt() {
   const expiresAt = new Date();
@@ -40,8 +42,12 @@ export async function authenticateUser(identifier: string, password: string) {
     (await db.user.findFirst({
       where: { name: normalizedIdentifier },
     }));
+  const passwordMatches = verifyPassword(
+    password,
+    user?.passwordHash ?? dummyPasswordHash,
+  );
 
-  if (!user || !verifyPassword(password, user.passwordHash)) {
+  if (!user || !passwordMatches) {
     return null;
   }
 

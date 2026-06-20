@@ -16,6 +16,8 @@ export type MappedParticipantCsvRow = {
   organization: string | null;
 };
 
+export const maxParticipantCsvFileSizeBytes = 1_000_000;
+
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function detectDelimiter(headerLine: string) {

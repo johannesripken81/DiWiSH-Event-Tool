@@ -40,6 +40,20 @@ function getConnectionString() {
   return trimmedConnectionString;
 }
 
+function getPoolMax() {
+  const configuredPoolMax = Number(process.env.DATABASE_POOL_MAX ?? 5);
+
+  if (
+    Number.isInteger(configuredPoolMax) &&
+    configuredPoolMax >= 1 &&
+    configuredPoolMax <= 20
+  ) {
+    return configuredPoolMax;
+  }
+
+  return 5;
+}
+
 function getPgPool() {
   if (!globalForPrisma.pgPool) {
     globalForPrisma.pgPool = new Pool({
@@ -49,7 +63,7 @@ function getPgPool() {
       idleTimeoutMillis: 120_000,
       keepAlive: true,
       keepAliveInitialDelayMillis: 10_000,
-      max: 2,
+      max: getPoolMax(),
     });
   }
 

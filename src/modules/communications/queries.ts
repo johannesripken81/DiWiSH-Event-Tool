@@ -23,29 +23,31 @@ export async function getCommunicationPlan(
     approvalStatus: filters.approvalStatus,
   };
 
-  const event = await db.event.findUnique({
-    where: { id: eventId },
-    select: {
-      id: true,
-      title: true,
-      eventDate: true,
-    },
-  });
-  const measures = await db.communicationMeasure.findMany({
-    where,
-    include: {
-      responsibleUser: {
-        select: {
-          id: true,
-          name: true,
+  const [event, measures, totalMeasures] = await Promise.all([
+    db.event.findUnique({
+      where: { id: eventId },
+      select: {
+        id: true,
+        title: true,
+        eventDate: true,
+      },
+    }),
+    db.communicationMeasure.findMany({
+      where,
+      include: {
+        responsibleUser: {
+          select: {
+            id: true,
+            name: true,
+          },
         },
       },
-    },
-    orderBy: [{ publicationDate: "asc" }, { createdAt: "asc" }],
-  });
-  const totalMeasures = await db.communicationMeasure.count({
-    where: { eventId },
-  });
+      orderBy: [{ publicationDate: "asc" }, { createdAt: "asc" }],
+    }),
+    db.communicationMeasure.count({
+      where: { eventId },
+    }),
+  ]);
 
   return { event, measures, totalMeasures };
 }
@@ -56,29 +58,31 @@ export async function getCommunicationEditorData(
 ) {
   await requireEventReadAccess();
   const db = getDb();
-  const event = await db.event.findUnique({
-    where: { id: eventId },
-    select: {
-      id: true,
-      title: true,
-    },
-  });
-  const measure = measureId
-    ? await db.communicationMeasure.findFirst({
-        where: {
-          id: measureId,
-          eventId,
-        },
-      })
-    : null;
-  const users = await db.user.findMany({
-    select: {
-      id: true,
-      name: true,
-      role: true,
-    },
-    orderBy: { name: "asc" },
-  });
+  const [event, measure, users] = await Promise.all([
+    db.event.findUnique({
+      where: { id: eventId },
+      select: {
+        id: true,
+        title: true,
+      },
+    }),
+    measureId
+      ? db.communicationMeasure.findFirst({
+          where: {
+            id: measureId,
+            eventId,
+          },
+        })
+      : Promise.resolve(null),
+    db.user.findMany({
+      select: {
+        id: true,
+        name: true,
+        role: true,
+      },
+      orderBy: { name: "asc" },
+    }),
+  ]);
 
   return { event, measure, users };
 }

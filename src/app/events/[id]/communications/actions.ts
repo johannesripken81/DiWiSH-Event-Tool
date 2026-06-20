@@ -131,6 +131,7 @@ export async function createCommunicationMeasureAction(
 
       await transaction.auditLog.create({
         data: {
+          userId: currentUser.id,
           entityType: "CommunicationMeasure",
           entityId: measure.id,
           action: "CREATED",
@@ -205,6 +206,7 @@ export async function updateCommunicationMeasureAction(
 
       await transaction.auditLog.create({
         data: {
+          userId: currentUser.id,
           entityType: "CommunicationMeasure",
           entityId: measure.id,
           action: "UPDATED",
@@ -268,6 +270,7 @@ export async function deleteCommunicationMeasureAction(formData: FormData) {
   await db.$transaction([
     db.auditLog.create({
       data: {
+        userId: currentUser.id,
         entityType: "CommunicationMeasure",
         entityId: measure.id,
         action: "DELETED",

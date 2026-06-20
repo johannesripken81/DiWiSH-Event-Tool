@@ -58,34 +58,36 @@ export async function getEventTaskPlanning(
     where.status = { notIn: [...CLOSED_TASK_STATUSES] };
   }
 
-  const event = await db.event.findUnique({
-    where: { id: eventId },
-    select: {
-      id: true,
-      title: true,
-      eventDate: true,
-    },
-  });
-  const tasks = await db.eventTask.findMany({
-    where,
-    include: {
-      responsibleUser: {
-        select: { id: true, name: true },
+  const [event, tasks, users, totalTasks] = await Promise.all([
+    db.event.findUnique({
+      where: { id: eventId },
+      select: {
+        id: true,
+        title: true,
+        eventDate: true,
       },
-      reviewerUser: {
-        select: { id: true, name: true },
+    }),
+    db.eventTask.findMany({
+      where,
+      include: {
+        responsibleUser: {
+          select: { id: true, name: true },
+        },
+        reviewerUser: {
+          select: { id: true, name: true },
+        },
       },
-    },
-  });
-  const users = await db.user.findMany({
-    select: {
-      id: true,
-      name: true,
-      role: true,
-    },
-    orderBy: { name: "asc" },
-  });
-  const totalTasks = await db.eventTask.count({ where: { eventId } });
+    }),
+    db.user.findMany({
+      select: {
+        id: true,
+        name: true,
+        role: true,
+      },
+      orderBy: { name: "asc" },
+    }),
+    db.eventTask.count({ where: { eventId } }),
+  ]);
 
   return {
     event,
@@ -99,23 +101,25 @@ export async function getEventTaskPlanning(
 export async function getEventTaskEditorData(eventId: string, taskId?: string) {
   await requireEventReadAccess();
   const db = getDb();
-  const event = await db.event.findUnique({
-    where: { id: eventId },
-    select: { id: true, title: true },
-  });
-  const task = taskId
-    ? await db.eventTask.findFirst({
-        where: { id: taskId, eventId },
-      })
-    : null;
-  const users = await db.user.findMany({
-    select: {
-      id: true,
-      name: true,
-      role: true,
-    },
-    orderBy: { name: "asc" },
-  });
+  const [event, task, users] = await Promise.all([
+    db.event.findUnique({
+      where: { id: eventId },
+      select: { id: true, title: true },
+    }),
+    taskId
+      ? db.eventTask.findFirst({
+          where: { id: taskId, eventId },
+        })
+      : Promise.resolve(null),
+    db.user.findMany({
+      select: {
+        id: true,
+        name: true,
+        role: true,
+      },
+      orderBy: { name: "asc" },
+    }),
+  ]);
 
   return { event, task, users };
 }
