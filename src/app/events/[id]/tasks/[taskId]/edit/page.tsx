@@ -53,6 +53,7 @@ export default async function EditEventTaskPage({
     dueDate: formatTaskFormDate(task.dueDate),
     isCritical: task.isCritical,
     approvalRequired: task.approvalRequired,
+    shiftFollowingOpenPreparationTasks: false,
   };
 
   return (

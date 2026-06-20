@@ -12,6 +12,7 @@ import {
   UserRole,
 } from "../src/generated/prisma/client";
 import { hashPassword } from "../src/lib/password";
+import { ensureDefaultEventTemplates } from "../src/modules/events/default-templates";
 import { calculateDueDate } from "../src/modules/tasks/reverse-planning";
 
 const connectionString = process.env.DATABASE_URL_UNPOOLED;
@@ -697,6 +698,7 @@ async function seedDemoEvent(
 async function main() {
   const userRecords = await upsertUsers();
   const eventTemplate = await seedTemplate();
+  const defaultTemplates = await ensureDefaultEventTemplates(prisma);
   const { event, taskCount } = await seedDemoEvent(
     eventTemplate.id,
     userRecords,
@@ -729,7 +731,7 @@ async function main() {
   }
 
   console.log(
-    `Seed complete: ${userCount} users, ${taskTemplateCount} task templates, event "${event.title}" with ${eventTaskCount} tasks.`,
+    `Seed complete: ${userCount} users, ${taskTemplateCount} task templates, ${defaultTemplates.templateCount} additional default templates, event "${event.title}" with ${eventTaskCount} tasks.`,
   );
 }
 

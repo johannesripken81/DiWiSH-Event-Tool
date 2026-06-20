@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "tsx --test src/lib/audit-log.test.ts src/lib/password.test.ts src/lib/permissions.test.ts src/modules/tasks/reverse-planning.test.ts src/modules/events/template-tasks.test.ts src/modules/events/readiness.test.ts src/modules/events/metrics.test.ts src/modules/communications/metrics.test.ts src/modules/evaluations/metrics.test.ts src/modules/participants/csv-import.test.ts src/modules/notifications/due-notifications.test.ts",
+    "test": "tsx --test src/lib/audit-log.test.ts src/lib/password.test.ts src/lib/permissions.test.ts src/modules/tasks/reverse-planning.test.ts src/modules/events/template-tasks.test.ts src/modules/events/default-templates.test.ts src/modules/events/readiness.test.ts src/modules/events/metrics.test.ts src/modules/communications/metrics.test.ts src/modules/evaluations/metrics.test.ts src/modules/participants/csv-import.test.ts src/modules/notifications/due-notifications.test.ts src/modules/notifications/due-task-emails.test.ts",
     "typecheck": "next typegen && tsc --noEmit",
     "quality": "npm run db:validate && npm run typecheck && npm run lint && npm test && npm run build",
     "postinstall": "prisma generate",
@@ -22,6 +22,8 @@
     "db:setup": "prisma generate && prisma validate && prisma migrate dev && prisma db seed",
     "db:studio": "prisma studio",
     "notifications:generate": "tsx scripts/generate-due-notifications.ts",
+    "notifications:email-due-today": "tsx scripts/send-due-task-emails.ts",
+    "templates:ensure-defaults": "tsx scripts/ensure-default-event-templates.ts",
     "user:ensure-admin": "tsx scripts/ensure-admin-user.ts",
     "user:set-password": "tsx scripts/set-user-password.ts"
   },

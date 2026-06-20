@@ -14,6 +14,7 @@ import {
   createEventTemplateAction,
   createUserAction,
   deleteUserAction,
+  ensureDefaultEventTemplatesAction,
   generateNotificationsAction,
   saveNotificationSettingsAction,
   saveWorkspaceSettingsAction,
@@ -59,6 +60,15 @@ function getMessage(query: SearchParams) {
 
   if (saved === "templates") {
     return { tone: "green", text: "Eventvorlagen gespeichert." } as const;
+  }
+
+  if (saved === "default-templates") {
+    return {
+      tone: "green",
+      text: `${firstValue(query.templates) ?? "0"} Standardvorlagen mit ${
+        firstValue(query.tasks) ?? "0"
+      } Aufgaben aktualisiert.`,
+    } as const;
   }
 
   if (saved === "notifications") {
@@ -176,6 +186,9 @@ export default async function SettingsPage({
   });
   const message = getMessage(query);
   const isAdmin = currentUser.role === UserRole.ADMIN;
+  const emailDeliveryConfigured = Boolean(
+    process.env.RESEND_API_KEY?.trim() && process.env.EMAIL_FROM?.trim(),
+  );
   const activeNotificationCount = notificationLabels.filter(
     (item) => notificationSettings[item.name],
   ).length;
@@ -463,6 +476,29 @@ export default async function SettingsPage({
             title="Eventvorlagen"
           />
           <div className="space-y-4 p-5">
+            {isAdmin ? (
+              <form
+                action={ensureDefaultEventTemplatesAction}
+                className="flex flex-col justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 sm:flex-row sm:items-center"
+              >
+                <input name="returnTo" type="hidden" value="/settings" />
+                <div>
+                  <p className="text-sm font-bold text-blue-950">
+                    DIWISH-Standardvorlagen bereitstellen
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-blue-900">
+                    Legt die Vorlagen Große Veranstaltung,
+                    Fachgruppenveranstaltung (Präsenz) und
+                    Fachgruppenveranstaltung (virtuell) an oder aktualisiert
+                    sie.
+                  </p>
+                </div>
+                <button className={secondaryButtonClass} type="submit">
+                  Standardvorlagen aktualisieren
+                </button>
+              </form>
+            ) : null}
+
             {templates.length === 0 ? (
               <EmptyHint>Es sind noch keine Eventvorlagen angelegt.</EmptyHint>
             ) : (
@@ -527,7 +563,7 @@ export default async function SettingsPage({
 
         <Card>
           <CardHeader
-            description="Interne Notification-Datensätze steuern. Es werden weiterhin keine echten E-Mails oder Teams-Nachrichten gesendet."
+            description="Interne Hinweise und tägliche E-Mail-Erinnerungen für fällige Aufgaben steuern."
             title="Benachrichtigungen"
           />
           <div className="space-y-4 p-5">
@@ -535,6 +571,16 @@ export default async function SettingsPage({
               <SummaryItem
                 label="Aktive Regeln"
                 value={`${activeNotificationCount} von ${notificationLabels.length}`}
+              />
+              <SummaryItem
+                label="E-Mail-Versand"
+                value={
+                  emailDeliveryConfigured ? (
+                    <StatusBadge color="green">Konfiguriert</StatusBadge>
+                  ) : (
+                    <StatusBadge color="red">Nicht konfiguriert</StatusBadge>
+                  )
+                }
               />
               {notificationLabels.map((item) => (
                 <SummaryItem
@@ -605,7 +651,8 @@ export default async function SettingsPage({
         <EmptyHint>
           Hinweis: Änderungen an Eventvorlagen wirken auf neu angelegte Events.
           Bereits erzeugte Event-Aufgaben bleiben bewusst unverändert. Microsoft
-          Planner und externe Benachrichtigungen sind weiterhin nur vorbereitet.
+          Planner ist weiterhin nur vorbereitet; E-Mail-Erinnerungen laufen über
+          die konfigurierte Cron- und Resend-Anbindung.
         </EmptyHint>
       </div>
 

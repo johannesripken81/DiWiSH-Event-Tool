@@ -8,6 +8,7 @@ import { TaskPriority, UserRole } from "@/generated/prisma/enums";
 import { clearCurrentUserCache, getCurrentUser } from "@/lib/current-user";
 import { getDb } from "@/lib/db";
 import { hashPassword, isPasswordLongEnough } from "@/lib/password";
+import { ensureDefaultEventTemplates } from "@/modules/events/default-templates";
 import { generateDueNotifications } from "@/modules/notifications/due-notifications";
 import { getNotificationSettings } from "@/modules/settings/queries";
 import {
@@ -250,6 +251,22 @@ export async function createEventTemplateAction(formData: FormData) {
 
   revalidatePath("/settings");
   settingsRedirect({ saved: "templates" }, returnTo);
+}
+
+export async function ensureDefaultEventTemplatesAction(formData: FormData) {
+  await requireAdmin();
+  const returnTo = getSettingsReturnTo(formData);
+  const result = await ensureDefaultEventTemplates();
+
+  revalidatePath("/settings");
+  settingsRedirect(
+    {
+      saved: "default-templates",
+      templates: String(result.templateCount),
+      tasks: String(result.taskCount),
+    },
+    returnTo,
+  );
 }
 
 export async function updateEventTemplateAction(formData: FormData) {

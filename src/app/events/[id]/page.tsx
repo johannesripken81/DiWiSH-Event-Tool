@@ -29,6 +29,9 @@ type CockpitAuditLog = NonNullable<
 type CockpitTask = NonNullable<
   Awaited<ReturnType<typeof getEventCockpit>>
 >["event"]["tasks"][number];
+type ReadinessAreaKey = NonNullable<
+  Awaited<ReturnType<typeof getEventCockpit>>
+>["readiness"]["missingAreas"][number]["key"];
 
 function AuditHistory({ logs }: { logs: CockpitAuditLog[] }) {
   const dateTimeFormatter = new Intl.DateTimeFormat("de-DE", {
@@ -139,8 +142,10 @@ function MetricCard({
 }
 
 function ReadinessCard({
+  eventId,
   readiness,
 }: {
+  eventId: string;
   readiness: NonNullable<
     Awaited<ReturnType<typeof getEventCockpit>>
   >["readiness"];
@@ -164,6 +169,10 @@ function ReadinessCard({
     },
   };
   const tone = toneClasses[readiness.level.tone];
+  const getAreaHref = (key: ReadinessAreaKey) =>
+    key === "setup"
+      ? `/events/${eventId}/edit`
+      : `/events/${eventId}/tasks?readinessArea=${key}`;
 
   return (
     <Card className="mb-6 overflow-hidden">
@@ -201,21 +210,26 @@ function ReadinessCard({
           ) : (
             <ul className="mt-3 grid gap-3 xl:grid-cols-2">
               {readiness.missingAreas.map((area) => (
-                <li
-                  className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3"
-                  key={area.key}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <span className="text-sm font-bold text-slate-800">
-                      {area.label}
+                <li key={area.key}>
+                  <Link
+                    className="group hover:border-brand-300 hover:bg-brand-50 block rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 transition"
+                    href={getAreaHref(area.key)}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="text-sm font-bold text-slate-800">
+                        {area.label}
+                      </span>
+                      <span className="shrink-0 text-xs font-bold text-red-700">
+                        -{area.maxPoints} Punkte
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs leading-5 text-slate-600">
+                      {area.explanation}
+                    </p>
+                    <span className="text-brand-700 group-hover:text-brand-900 mt-2 inline-flex text-xs font-bold">
+                      Bearbeiten
                     </span>
-                    <span className="shrink-0 text-xs font-bold text-red-700">
-                      -{area.maxPoints} Punkte
-                    </span>
-                  </div>
-                  <p className="mt-1 text-xs leading-5 text-slate-600">
-                    {area.explanation}
-                  </p>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -705,7 +719,7 @@ export default async function EventCockpitPage({
         </div>
       ) : null}
 
-      <ReadinessCard readiness={readiness} />
+      <ReadinessCard eventId={event.id} readiness={readiness} />
 
       <ParticipantCard eventId={event.id} metrics={participantMetrics} />
 

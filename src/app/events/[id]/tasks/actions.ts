@@ -17,9 +17,29 @@ import {
   getTaskFormValues,
   optionalTaskValue,
   parseTaskDate,
+  preparationEventPhases,
   taskFormSchema,
   type TaskFormState,
 } from "@/modules/tasks/task-form";
+
+const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
+
+function addUtcDays(date: Date, days: number) {
+  const result = new Date(date);
+  result.setUTCDate(result.getUTCDate() + days);
+  return result;
+}
+
+function getUtcDayDifference(from: Date, to: Date) {
+  return Math.round((to.getTime() - from.getTime()) / MILLISECONDS_PER_DAY);
+}
+
+function formatDayShift(days: number) {
+  const absoluteDays = Math.abs(days);
+  return `${days > 0 ? "+" : "-"}${absoluteDays} ${
+    absoluteDays === 1 ? "Tag" : "Tage"
+  }`;
+}
 
 function getRelationErrors(
   userIds: Set<string>,
@@ -292,8 +312,18 @@ export async function updateTaskAction(
     };
   }
 
+  if (input.shiftFollowingOpenPreparationTasks && !canManageAllTasks) {
+    return {
+      values: getTaskFormValues(formData),
+      fieldErrors: {},
+      formError:
+        "Folgeaufgaben dürfen nur durch Admins oder Event Leads verschoben werden.",
+    };
+  }
+
   const dueDate = parseTaskDate(input.dueDate);
   const dueDateChanged = existingTask.dueDate?.getTime() !== dueDate?.getTime();
+  let shiftedFollowingTasks = 0;
 
   try {
     await db.$transaction(async (transaction) => {
@@ -401,6 +431,80 @@ export async function updateTaskAction(
           },
         });
       }
+
+      if (
+        input.shiftFollowingOpenPreparationTasks &&
+        dueDateChanged &&
+        existingTask.dueDate &&
+        updatedTask.dueDate
+      ) {
+        const shiftDays = getUtcDayDifference(
+          existingTask.dueDate,
+          updatedTask.dueDate,
+        );
+
+        if (shiftDays !== 0) {
+          const followingTasks = await transaction.eventTask.findMany({
+            where: {
+              eventId: input.eventId,
+              id: { not: existingTask.id },
+              dueDate: { gt: existingTask.dueDate },
+              phase: { in: [...preparationEventPhases] },
+              status: {
+                notIn: [TaskStatus.COMPLETED, TaskStatus.CANCELLED],
+              },
+            },
+            select: {
+              id: true,
+              title: true,
+              dueDate: true,
+              plannerTaskId: true,
+            },
+            orderBy: [{ dueDate: "asc" }, { title: "asc" }],
+          });
+
+          for (const followingTask of followingTasks) {
+            if (!followingTask.dueDate) {
+              continue;
+            }
+
+            const shiftedDueDate = addUtcDays(followingTask.dueDate, shiftDays);
+
+            await transaction.eventTask.update({
+              where: { id: followingTask.id },
+              data: {
+                dueDate: shiftedDueDate,
+                isDueDateManuallyOverridden: true,
+                ...(followingTask.plannerTaskId
+                  ? {
+                      plannerSyncRequired: true,
+                      plannerSyncStatus: PlannerSyncStatus.PENDING,
+                    }
+                  : {}),
+              },
+            });
+
+            await createAuditLog(transaction, {
+              userId: currentUser.id,
+              entityType: "EventTask",
+              entityId: followingTask.id,
+              action: AuditAction.TASK_DUE_DATE_CHANGED,
+              oldValue: {
+                dueDate: followingTask.dueDate.toISOString(),
+              },
+              newValue: {
+                dueDate: shiftedDueDate.toISOString(),
+                reason: `Folgeverschiebung (${formatDayShift(
+                  shiftDays,
+                )}) wegen Aufgabe "${updatedTask.title}"`,
+                sourceTaskId: updatedTask.id,
+              },
+            });
+
+            shiftedFollowingTasks += 1;
+          }
+        }
+      }
     });
   } catch (error) {
     console.error("Failed to update task", error);
@@ -414,7 +518,11 @@ export async function updateTaskAction(
   }
 
   revalidateTaskViews(input.eventId);
-  redirect(`/events/${input.eventId}/tasks`);
+  redirect(
+    shiftedFollowingTasks > 0
+      ? `/events/${input.eventId}/tasks?shifted=${shiftedFollowingTasks}`
+      : `/events/${input.eventId}/tasks`,
+  );
 }
 
 export async function changeTaskStatusAction(formData: FormData) {

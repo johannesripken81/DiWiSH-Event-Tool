@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { Card } from "@/components/ui";
@@ -103,6 +103,14 @@ export function TaskForm({
   const reviewerUser = users.find(
     (user) => user.id === state.values.reviewerUserId,
   );
+  const originalDueDate = initialValues.dueDate;
+  const [currentDueDate, setCurrentDueDate] = useState(state.values.dueDate);
+  const shouldAskForFollowingShift =
+    mode === "edit" &&
+    canManageAssignment &&
+    Boolean(originalDueDate) &&
+    Boolean(currentDueDate) &&
+    originalDueDate !== currentDueDate;
 
   return (
     <form action={formAction} noValidate>
@@ -186,6 +194,7 @@ export function TaskForm({
                   className={inputClass}
                   defaultValue={state.values.dueDate}
                   name="dueDate"
+                  onChange={(event) => setCurrentDueDate(event.target.value)}
                   type="date"
                 />
                 <FieldError name="dueDate" state={state} />
@@ -203,6 +212,33 @@ export function TaskForm({
                 </p>
               </div>
             )}
+
+            {shouldAskForFollowingShift ? (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 md:col-span-2">
+                <label className="flex items-start gap-3">
+                  <input
+                    className="text-brand-800 mt-0.5 size-4 rounded border-slate-300"
+                    defaultChecked={
+                      state.values.shiftFollowingOpenPreparationTasks
+                    }
+                    name="shiftFollowingOpenPreparationTasks"
+                    type="checkbox"
+                  />
+                  <span>
+                    <span className="block text-sm font-semibold text-amber-950">
+                      Nachfolgende offene Vorbereitungsaufgaben ebenfalls
+                      verschieben?
+                    </span>
+                    <span className="mt-1 block text-xs leading-5 text-amber-900">
+                      Alle offenen Aufgaben in Vorbereitungsphasen mit späterem
+                      Fälligkeitsdatum werden um dieselbe Anzahl Tage
+                      verschoben. Erledigte und entfallene Aufgaben bleiben
+                      unverändert.
+                    </span>
+                  </span>
+                </label>
+              </div>
+            ) : null}
           </div>
         </Card>
 

@@ -35,6 +35,7 @@ export const taskFormSchema = z
     dueDate: optionalDate,
     isCritical: z.boolean(),
     approvalRequired: z.boolean(),
+    shiftFollowingOpenPreparationTasks: z.boolean(),
   })
   .superRefine((value, context) => {
     if (
@@ -79,6 +80,7 @@ export type TaskFormValues = {
   dueDate: string;
   isCritical: boolean;
   approvalRequired: boolean;
+  shiftFollowingOpenPreparationTasks: boolean;
 };
 
 export type TaskFormState = {
@@ -101,6 +103,7 @@ export function getEmptyTaskFormValues(eventId: string): TaskFormValues {
     dueDate: "",
     isCritical: false,
     approvalRequired: false,
+    shiftFollowingOpenPreparationTasks: false,
   };
 }
 
@@ -123,6 +126,8 @@ export function getTaskFormValues(formData: FormData): TaskFormValues {
     dueDate: getString(formData, "dueDate"),
     isCritical: formData.get("isCritical") === "on",
     approvalRequired: formData.get("approvalRequired") === "on",
+    shiftFollowingOpenPreparationTasks:
+      formData.get("shiftFollowingOpenPreparationTasks") === "on",
   };
 }
 
@@ -138,3 +143,14 @@ export function optionalTaskValue(value: string) {
   const normalized = value.trim();
   return normalized || null;
 }
+
+export const preparationEventPhases = [
+  EventPhase.CONCEPTION,
+  EventPhase.FOUR_EYES_REVIEW,
+  EventPhase.LOCATION_CATERING,
+  EventPhase.SPEAKERS_PARTNERS,
+  EventPhase.COMMUNICATION,
+  EventPhase.PARTICIPANT_MANAGEMENT,
+  EventPhase.MATERIAL_PRESENTATION,
+  EventPhase.TECHNOLOGY,
+] as const;

@@ -27,9 +27,11 @@ import {
 } from "@/modules/events/presentation";
 import {
   getEventTaskPlanning,
+  getTaskReadinessAreaLabel,
   isEventPhase,
   isTaskDueFilter,
   isTaskPriority,
+  isTaskReadinessAreaFilter,
   isTaskStatus,
   type EventTaskFilters,
 } from "@/modules/tasks/queries";
@@ -42,6 +44,7 @@ type SearchParams = Record<string, string | string[] | undefined>;
 type PlanningTask = Awaited<
   ReturnType<typeof getEventTaskPlanning>
 >["tasks"][number];
+type CurrentUser = Awaited<ReturnType<typeof getCurrentUser>>;
 
 function firstValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -188,6 +191,153 @@ function TaskDoneToggle({
   );
 }
 
+function TaskPlanningTable({
+  currentUser,
+  eventId,
+  tasks,
+  today,
+}: {
+  currentUser: CurrentUser;
+  eventId: string;
+  tasks: PlanningTask[];
+  today: Date;
+}) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[1250px] text-left text-sm">
+        <thead className="bg-slate-50 text-xs font-semibold tracking-wide text-slate-500 uppercase">
+          <tr>
+            <th className="px-5 py-3">Aufgabe</th>
+            <th className="px-4 py-3">Phase</th>
+            <th className="px-4 py-3">Verantwortlich</th>
+            <th className="px-4 py-3">Prüfer/in</th>
+            <th className="px-4 py-3">Status</th>
+            <th className="px-4 py-3">Priorität</th>
+            <th className="px-4 py-3">Fällig am</th>
+            <th className="px-4 py-3">Kritisch</th>
+            <th className="px-5 py-3 text-right">Aktionen</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {tasks.map((task) => {
+            const status = getTaskStatusPresentation(task.status);
+            const priority = getTaskPriorityPresentation(task.priority);
+            const row = getTaskRowPresentation(task, today);
+            const canUpdateTask = hasPermission(
+              currentUser,
+              Permission.UPDATE_TASK,
+              { responsibleUserId: task.responsibleUserId },
+            );
+            const canChangeStatus = hasPermission(
+              currentUser,
+              Permission.CHANGE_TASK_STATUS,
+              { responsibleUserId: task.responsibleUserId },
+            );
+
+            return (
+              <tr className={row.row} key={task.id}>
+                <td className="px-5 py-4">
+                  <div className="flex items-start gap-3">
+                    <TaskDoneToggle
+                      canChangeStatus={canChangeStatus}
+                      eventId={eventId}
+                      task={task}
+                    />
+                    <div>
+                      {canUpdateTask ? (
+                        <Link
+                          className="text-brand-950 hover:text-brand-700 font-bold"
+                          href={`/events/${eventId}/tasks/${task.id}/edit`}
+                        >
+                          {task.title}
+                        </Link>
+                      ) : (
+                        <span className="text-brand-950 font-bold">
+                          {task.title}
+                        </span>
+                      )}
+                      {task.description ? (
+                        <p className="mt-1 max-w-xs truncate text-xs text-slate-500">
+                          {task.description}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                </td>
+                <td className="px-4 py-4 text-slate-700">
+                  {getPhaseLabel(task.phase)}
+                </td>
+                <td className="px-4 py-4 text-slate-700">
+                  {task.responsibleUser?.name ?? "Nicht zugewiesen"}
+                </td>
+                <td className="px-4 py-4 text-slate-700">
+                  {task.reviewerUser?.name ?? "Nicht zugewiesen"}
+                </td>
+                <td className="px-4 py-4">
+                  <StatusBadge color={status.color}>{status.label}</StatusBadge>
+                </td>
+                <td className="px-4 py-4">
+                  <StatusBadge color={priority.color}>
+                    {priority.label}
+                  </StatusBadge>
+                </td>
+                <td className={`px-4 py-4 font-semibold ${row.due}`}>
+                  {formatDate(task.dueDate)}
+                  {row.hint ? (
+                    <span className="mt-1 block text-xs">{row.hint}</span>
+                  ) : null}
+                </td>
+                <td className="px-4 py-4">
+                  <span
+                    className={
+                      task.isCritical
+                        ? "font-bold text-red-700"
+                        : "text-slate-500"
+                    }
+                  >
+                    {task.isCritical ? "Ja" : "Nein"}
+                  </span>
+                </td>
+                <td className="px-5 py-4">
+                  <div className="flex justify-end gap-2">
+                    {canUpdateTask ? (
+                      <Link
+                        className="inline-flex min-h-8 items-center rounded-md border border-slate-300 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                        href={`/events/${eventId}/tasks/${task.id}/edit`}
+                      >
+                        Details bearbeiten
+                      </Link>
+                    ) : null}
+                    {canChangeStatus && isOpenTask(task) ? (
+                      <StatusAction
+                        className="bg-slate-200 text-slate-700 hover:bg-slate-300"
+                        eventId={eventId}
+                        status={TaskStatus.CANCELLED}
+                        taskId={task.id}
+                      >
+                        Entfällt
+                      </StatusAction>
+                    ) : canChangeStatus ? (
+                      <StatusAction
+                        className="bg-blue-100 text-blue-800 hover:bg-blue-200"
+                        eventId={eventId}
+                        status={TaskStatus.OPEN}
+                        taskId={task.id}
+                      >
+                        Wieder öffnen
+                      </StatusAction>
+                    ) : null}
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default async function EventTasksPage({
   params,
   searchParams,
@@ -201,6 +351,7 @@ export default async function EventTasksPage({
   const responsibleUserId = firstValue(query.responsibleUserId);
   const priorityValue = firstValue(query.priority);
   const dueValue = firstValue(query.due);
+  const readinessAreaValue = firstValue(query.readinessArea);
   const filters: EventTaskFilters = {
     status: isTaskStatus(statusValue) ? statusValue : undefined,
     phase: isEventPhase(phaseValue) ? phaseValue : undefined,
@@ -208,6 +359,9 @@ export default async function EventTasksPage({
     priority: isTaskPriority(priorityValue) ? priorityValue : undefined,
     due: isTaskDueFilter(dueValue) ? dueValue : "all",
     criticalOnly: firstValue(query.critical) === "true",
+    readinessArea: isTaskReadinessAreaFilter(readinessAreaValue)
+      ? readinessAreaValue
+      : undefined,
   };
   const planning = await getEventTaskPlanning(id, filters);
   const currentUser = await getCurrentUser();
@@ -227,7 +381,21 @@ export default async function EventTasksPage({
     filters.responsibleUserId ||
     filters.priority ||
     filters.due !== "all" ||
-    filters.criticalOnly,
+    filters.criticalOnly ||
+    filters.readinessArea,
+  );
+  const shiftedFollowingTasks = Number.parseInt(
+    firstValue(query.shifted) ?? "",
+    10,
+  );
+  const shiftedFollowingTaskCount = Number.isFinite(shiftedFollowingTasks)
+    ? shiftedFollowingTasks
+    : 0;
+  const activeTasks = planning.tasks.filter(
+    (task) => task.status !== TaskStatus.COMPLETED,
+  );
+  const completedTasks = planning.tasks.filter(
+    (task) => task.status === TaskStatus.COMPLETED,
   );
 
   return (
@@ -257,6 +425,14 @@ export default async function EventTasksPage({
           className="grid gap-4 p-4 md:grid-cols-2 xl:grid-cols-7"
           method="get"
         >
+          {filters.readinessArea ? (
+            <input
+              name="readinessArea"
+              type="hidden"
+              value={filters.readinessArea}
+            />
+          ) : null}
+
           <label className="block">
             <span className="mb-1.5 block text-xs font-bold text-slate-600">
               Status
@@ -371,6 +547,35 @@ export default async function EventTasksPage({
         </form>
       </Card>
 
+      {shiftedFollowingTaskCount > 0 ? (
+        <div
+          className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
+          role="status"
+        >
+          <strong>
+            {shiftedFollowingTaskCount} nachfolgende{" "}
+            {shiftedFollowingTaskCount === 1 ? "Aufgabe" : "Aufgaben"}{" "}
+            verschoben.
+          </strong>{" "}
+          Erledigte und entfallene Aufgaben wurden unverändert gelassen.
+        </div>
+      ) : null}
+
+      {filters.readinessArea ? (
+        <div className="mb-5 flex flex-col gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-950 sm:flex-row sm:items-center sm:justify-between">
+          <span>
+            Readiness-Bereich aktiv:{" "}
+            <strong>{getTaskReadinessAreaLabel(filters.readinessArea)}</strong>
+          </span>
+          <Link
+            className="text-brand-700 font-semibold hover:underline"
+            href={`/events/${event.id}/tasks`}
+          >
+            Alle Aufgaben anzeigen
+          </Link>
+        </div>
+      ) : null}
+
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-semibold text-slate-700">
           {planning.tasks.length} von {planning.totalTasks} Aufgaben
@@ -405,6 +610,11 @@ export default async function EventTasksPage({
             }
             title="Keine Aufgaben gefunden"
           />
+        ) : activeTasks.length === 0 ? (
+          <EmptyState
+            description="In dieser Ansicht sind alle gefundenen Aufgaben bereits erledigt. Du findest sie im eingeklappten Bereich darunter."
+            title="Keine offenen Aufgaben in dieser Ansicht"
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1250px] text-left text-sm">
@@ -422,7 +632,7 @@ export default async function EventTasksPage({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {planning.tasks.map((task) => {
+                {activeTasks.map((task) => {
                   const status = getTaskStatusPresentation(task.status);
                   const priority = getTaskPriorityPresentation(task.priority);
                   const row = getTaskRowPresentation(task, planning.today);
@@ -542,6 +752,23 @@ export default async function EventTasksPage({
           </div>
         )}
       </Card>
+
+      {completedTasks.length > 0 ? (
+        <details className="shadow-card mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <summary className="flex cursor-pointer items-center justify-between gap-3 px-5 py-4 text-sm font-bold text-slate-800 hover:bg-slate-50">
+            <span>Erledigte Aufgaben ({completedTasks.length})</span>
+            <span className="text-xs font-semibold text-slate-500">
+              einklappen/ausklappen
+            </span>
+          </summary>
+          <TaskPlanningTable
+            currentUser={currentUser}
+            eventId={event.id}
+            tasks={completedTasks}
+            today={planning.today}
+          />
+        </details>
+      ) : null}
     </>
   );
 }

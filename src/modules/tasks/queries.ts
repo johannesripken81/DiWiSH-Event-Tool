@@ -10,6 +10,13 @@ import { CLOSED_TASK_STATUSES, getTodayUtc } from "@/modules/events/metrics";
 import { compareTasksByDueDate } from "@/modules/events/presentation";
 
 export type TaskDueFilter = "all" | "overdue" | "next7";
+export type TaskReadinessAreaFilter =
+  | "concept"
+  | "communication"
+  | "operations"
+  | "onsiteRoles"
+  | "participants"
+  | "followUp";
 
 export type EventTaskFilters = {
   status?: TaskStatus;
@@ -18,6 +25,16 @@ export type EventTaskFilters = {
   priority?: TaskPriority;
   due: TaskDueFilter;
   criticalOnly: boolean;
+  readinessArea?: TaskReadinessAreaFilter;
+};
+
+const taskReadinessAreaLabels: Record<TaskReadinessAreaFilter, string> = {
+  concept: "Kritische Konzeptaufgaben",
+  communication: "Kommunikation bereit und freigegeben",
+  operations: "Location, Catering und Technik geklärt",
+  onsiteRoles: "Vor-Ort-Rollen verteilt",
+  participants: "Teilnehmermanagement gepflegt",
+  followUp: "Feedback und Nachbereitung vorbereitet",
 };
 
 function addDays(date: Date, days: number) {
@@ -37,6 +54,35 @@ function getDueDateFilter(filter: TaskDueFilter, today: Date) {
   }
 }
 
+function getReadinessAreaFilter(
+  filter: TaskReadinessAreaFilter | undefined,
+): Prisma.EventTaskWhereInput | undefined {
+  switch (filter) {
+    case "concept":
+      return {
+        isCritical: true,
+        phase: { in: [EventPhase.CONCEPTION, EventPhase.FOUR_EYES_REVIEW] },
+      };
+    case "communication":
+      return {
+        phase: EventPhase.COMMUNICATION,
+        OR: [{ isCritical: true }, { approvalRequired: true }],
+      };
+    case "operations":
+      return {
+        phase: { in: [EventPhase.LOCATION_CATERING, EventPhase.TECHNOLOGY] },
+      };
+    case "onsiteRoles":
+      return { phase: EventPhase.EVENT_DAY };
+    case "participants":
+      return { phase: EventPhase.PARTICIPANT_MANAGEMENT };
+    case "followUp":
+      return { phase: { in: [EventPhase.FOLLOW_UP, EventPhase.EVALUATION] } };
+    case undefined:
+      return undefined;
+  }
+}
+
 export async function getEventTaskPlanning(
   eventId: string,
   filters: EventTaskFilters,
@@ -52,6 +98,9 @@ export async function getEventTaskPlanning(
     priority: filters.priority,
     isCritical: filters.criticalOnly ? true : undefined,
     dueDate: getDueDateFilter(filters.due, today),
+    AND: [getReadinessAreaFilter(filters.readinessArea)].filter(
+      (filter): filter is Prisma.EventTaskWhereInput => Boolean(filter),
+    ),
   };
 
   if (filters.due !== "all" && !filters.status) {
@@ -148,4 +197,14 @@ export function isTaskDueFilter(
   value: string | undefined,
 ): value is TaskDueFilter {
   return value === "all" || value === "overdue" || value === "next7";
+}
+
+export function isTaskReadinessAreaFilter(
+  value: string | undefined,
+): value is TaskReadinessAreaFilter {
+  return value ? Object.keys(taskReadinessAreaLabels).includes(value) : false;
+}
+
+export function getTaskReadinessAreaLabel(filter: TaskReadinessAreaFilter) {
+  return taskReadinessAreaLabels[filter];
 }
