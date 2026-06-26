@@ -57,15 +57,15 @@ function TemplateSaveMessage({ query }: { query: SearchParams }) {
     },
     duplicate: {
       tone: "red",
-      text: "Dieser Vorlagenname wird bereits verwendet. Bitte wÃ¤hle einen anderen Namen.",
+      text: "Dieser Vorlagenname wird bereits verwendet. Bitte wähle einen anderen Namen.",
     },
     empty: {
       tone: "red",
-      text: "FÃ¼r dieses Event sind noch keine Aufgaben vorhanden, aus denen eine Vorlage erstellt werden kann.",
+      text: "Für dieses Event sind noch keine Aufgaben vorhanden, aus denen eine Vorlage erstellt werden kann.",
     },
     invalid: {
       tone: "red",
-      text: "Bitte gib einen Namen fÃ¼r die neue Vorlage ein.",
+      text: "Bitte gib einen Namen für die neue Vorlage ein.",
     },
     denied: {
       tone: "red",
@@ -97,7 +97,7 @@ function TemplateSaveMessage({ query }: { query: SearchParams }) {
           className="text-brand-700 ml-3 font-semibold hover:underline"
           href={`/settings/event-templates/${templateId}`}
         >
-          Vorlage Ã¶ffnen
+          Vorlage öffnen
         </Link>
       ) : null}
     </div>
@@ -116,8 +116,8 @@ function AuditHistory({ logs }: { logs: CockpitAuditLog[] }) {
   if (logs.length === 0) {
     return (
       <EmptyState
-        description="Neue wichtige Ã„nderungen an Event und Aufgaben erscheinen automatisch an dieser Stelle."
-        title="Noch keine Ã„nderungen protokolliert"
+        description="Neue wichtige Änderungen an Event und Aufgaben erscheinen automatisch an dieser Stelle."
+        title="Noch keine Änderungen protokolliert"
       />
     );
   }
@@ -138,7 +138,7 @@ function AuditHistory({ logs }: { logs: CockpitAuditLog[] }) {
                 <p className="mt-0.5 text-xs text-slate-500">
                   {log.entityType === "EventTask" ? "Aufgabe: " : "Event: "}
                   {log.entityLabel}
-                  {log.user ? ` Â· ${log.user.name}` : ""}
+                  {log.user ? ` · ${log.user.name}` : ""}
                 </p>
               </div>
               <time
@@ -165,7 +165,7 @@ function AuditHistory({ logs }: { logs: CockpitAuditLog[] }) {
                           <span className="text-slate-500 line-through">
                             {change.oldValue}
                           </span>
-                          <span className="mx-2 text-slate-400">â†’</span>
+                          <span className="mx-2 text-slate-400">→</span>
                         </>
                       ) : null}
                       <span className="font-semibold">{change.newValue}</span>
@@ -275,7 +275,7 @@ function ReadinessCard({
           </h2>
           {readiness.missingAreas.length === 0 ? (
             <p className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm leading-6 text-emerald-800">
-              Alle Readiness-Kriterien sind erfÃ¼llt. Aktuell gehen keine Punkte
+              Alle Readiness-Kriterien sind erfüllt. Aktuell gehen keine Punkte
               verloren.
             </p>
           ) : (
@@ -325,7 +325,7 @@ function EvaluationCard({
           <div>
             <h2 className="text-brand-950 font-bold">Evaluation & Wirkung</h2>
             <p className="text-muted mt-1 text-sm leading-6">
-              FÃ¼r dieses Event wurden noch keine Kennzahlen oder Learnings
+              Für dieses Event wurden noch keine Kennzahlen oder Learnings
               dokumentiert.
             </p>
           </div>
@@ -343,11 +343,11 @@ function EvaluationCard({
   const metrics = [
     {
       label: "Anmeldungen",
-      value: evaluation.registrations?.toLocaleString("de-DE") ?? "â€“",
+      value: evaluation.registrations?.toLocaleString("de-DE") ?? "–",
     },
     {
       label: "Teilnehmende",
-      value: evaluation.attendees?.toLocaleString("de-DE") ?? "â€“",
+      value: evaluation.attendees?.toLocaleString("de-DE") ?? "–",
     },
     {
       label: "No-Show-Quote",
@@ -357,26 +357,26 @@ function EvaluationCard({
       label: "Zielgruppenfit",
       value:
         evaluation.targetAudienceFit === null
-          ? "â€“"
+          ? "–"
           : `${evaluation.targetAudienceFit} / 5`,
     },
     {
       label: "Zufriedenheit",
       value:
         evaluation.satisfaction === null
-          ? "â€“"
+          ? "–"
           : `${evaluation.satisfaction.toLocaleString("de-DE")} / 5`,
     },
     {
       label: "NPS",
-      value: evaluation.netPromoterScore?.toLocaleString("de-DE") ?? "â€“",
+      value: evaluation.netPromoterScore?.toLocaleString("de-DE") ?? "–",
     },
   ];
   const learnings = [
     ["Qualitative Learnings", evaluation.qualitativeLearnings],
     ["Was lief gut?", evaluation.wentWell],
     ["Was war schwierig?", evaluation.wasDifficult],
-    ["Beim nÃ¤chsten Mal anders", evaluation.nextTimeDifferent],
+    ["Beim nächsten Mal anders", evaluation.nextTimeDifferent],
   ].filter((entry): entry is [string, string] => Boolean(entry[1]));
 
   return (
@@ -432,7 +432,7 @@ function EvaluationCard({
           {learnings.length === 0 ? (
             <p className="mt-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600">
               Kennzahlen sind vorhanden, qualitative Learnings wurden aber noch
-              nicht ergÃ¤nzt.
+              nicht ergänzt.
             </p>
           ) : (
             <dl className="mt-3 grid gap-3">
@@ -472,14 +472,14 @@ function ParticipantCard({
         <div>
           <h2 className="text-brand-950 font-bold">Teilnehmermanagement</h2>
           <p className="text-muted mt-1 text-xs">
-            Gepflegte Kontakte fÃ¼r dieses Event
+            Gepflegte Kontakte für dieses Event
           </p>
         </div>
         <Link
           className="text-brand-700 text-sm font-semibold hover:underline"
           href={`/events/${eventId}/participants`}
         >
-          Teilnehmerliste Ã¶ffnen
+          Teilnehmerliste öffnen
         </Link>
       </div>
       <div className="p-5">
@@ -528,7 +528,7 @@ function SaveTemplateFromEventForm({
 }) {
   const defaultName = `Vorlage aus ${eventTitle}`.slice(0, 120);
   const defaultDescription =
-    `Aus dem Event "${eventTitle}" erstellt. Aufgaben werden beim nÃ¤chsten Event offen angelegt.`.slice(
+    `Aus dem Event "${eventTitle}" erstellt. Aufgaben werden beim nächsten Event offen angelegt.`.slice(
       0,
       1000,
     );
@@ -561,9 +561,9 @@ function SaveTemplateFromEventForm({
         />
       </label>
       <p className="mt-3 text-xs leading-5 text-slate-500">
-        Ãœbernimmt {taskCount.toLocaleString("de-DE")} {" "}
+        Übernimmt {taskCount.toLocaleString("de-DE")} {" "}
         {taskCount === 1 ? "Aufgabe" : "Aufgaben"} aus diesem Event. Status,
-        Erledigungen und Synchronisationsdaten werden nicht Ã¼bernommen.
+        Erledigungen und Synchronisationsdaten werden nicht übernommen.
       </p>
       <button
         className="bg-brand-900 hover:bg-brand-800 mt-4 inline-flex min-h-10 w-full items-center justify-center rounded-lg px-4 text-sm font-semibold text-white transition"
@@ -620,9 +620,9 @@ function TaskTable({
             <th className="px-5 py-3">Aufgabe</th>
             <th className="px-4 py-3">Phase</th>
             <th className="px-4 py-3">Verantwortlich</th>
-            <th className="px-4 py-3">PrioritÃ¤t</th>
+            <th className="px-4 py-3">Priorität</th>
             <th className="px-4 py-3">Status</th>
-            <th className="px-5 py-3 text-right">FÃ¤llig</th>
+            <th className="px-5 py-3 text-right">Fällig</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
@@ -716,18 +716,18 @@ export default async function EventCockpitPage({
     canManageEvents
       ? {
           title: "Event bearbeiten",
-          description: "Stammdaten, Rollen, Links oder Event lÃ¶schen",
+          description: "Stammdaten, Rollen, Links oder Event löschen",
           href: `/events/${event.id}/edit`,
         }
       : null,
     {
       title: "Aufgaben planen",
-      description: "Aufgaben, Status, Verantwortliche und FÃ¤lligkeiten",
+      description: "Aufgaben, Status, Verantwortliche und Fälligkeiten",
       href: `/events/${event.id}/tasks`,
     },
     {
       title: "Kommunikation planen",
-      description: "KanÃ¤le, Botschaften, Freigaben und Kennzahlen",
+      description: "Kanäle, Botschaften, Freigaben und Kennzahlen",
       href: `/events/${event.id}/communications`,
     },
     {
@@ -752,7 +752,7 @@ export default async function EventCockpitPage({
           className="text-brand-700 hover:text-brand-950 text-sm font-semibold"
           href="/events"
         >
-          â† ZurÃ¼ck zur Eventliste
+          ← Zurück zur Eventliste
         </Link>
       </div>
 
@@ -769,7 +769,7 @@ export default async function EventCockpitPage({
             </h1>
             <p className="text-muted mt-2 max-w-4xl text-sm leading-6 sm:text-base">
               {event.description ??
-                "FÃ¼r dieses Event ist noch keine Beschreibung hinterlegt."}
+                "Für dieses Event ist noch keine Beschreibung hinterlegt."}
             </p>
             <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:max-w-3xl">
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
@@ -836,12 +836,12 @@ export default async function EventCockpitPage({
           className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
           role="status"
         >
-          <strong>{planningResult.updated} FÃ¤lligkeiten aktualisiert.</strong>
+          <strong>{planningResult.updated} Fälligkeiten aktualisiert.</strong>
           {planningResult.skipped > 0
-            ? ` ${planningResult.skipped} manuell Ã¼berschriebene Termine wurden geschÃ¼tzt.`
+            ? ` ${planningResult.skipped} manuell überschriebene Termine wurden geschützt.`
             : ""}
           {planningResult.withoutOffset > 0
-            ? ` ${planningResult.withoutOffset} Aufgaben ohne Offset blieben unverÃ¤ndert.`
+            ? ` ${planningResult.withoutOffset} Aufgaben ohne Offset blieben unverändert.`
             : ""}
         </div>
       ) : null}
@@ -867,8 +867,8 @@ export default async function EventCockpitPage({
           value={metrics.openTasks}
         />
         <MetricCard
-          hint="FÃ¤lligkeit bereits Ã¼berschritten"
-          label="ÃœberfÃ¤llig"
+          hint="Fälligkeit bereits überschritten"
+          label="Überfällig"
           tone={metrics.overdueTasks > 0 ? "red" : "green"}
           value={metrics.overdueTasks}
         />
@@ -905,7 +905,7 @@ export default async function EventCockpitPage({
             />
             <DetailField
               className="sm:col-span-2"
-              label="Ziele, Nutzenversprechen, gewÃ¼nschtes Ergebnis"
+              label="Ziele, Nutzenversprechen, gewünschtes Ergebnis"
               value={event.goal}
             />
           </dl>
@@ -933,7 +933,7 @@ export default async function EventCockpitPage({
             {links.length === 0 ? (
               <div className="p-5">
                 <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600">
-                  FÃ¼r dieses Event sind noch keine zentralen Links hinterlegt.
+                  Für dieses Event sind noch keine zentralen Links hinterlegt.
                 </p>
               </div>
             ) : (
@@ -947,7 +947,7 @@ export default async function EventCockpitPage({
                     target="_blank"
                   >
                     {link.label}
-                    <span aria-hidden="true">â†—</span>
+                    <span aria-hidden="true">↗</span>
                   </a>
                 ))}
               </div>
@@ -956,9 +956,9 @@ export default async function EventCockpitPage({
 
           <Card>
             <div className="border-b border-slate-200 px-5 py-4">
-              <h2 className="text-brand-950 font-bold">RÃ¼ckwÃ¤rtsplanung</h2>
+              <h2 className="text-brand-950 font-bold">Rückwärtsplanung</h2>
               <p className="text-muted mt-1 text-xs">
-                Nach einer Ã„nderung des Eventdatums explizit auslÃ¶sen
+                Nach einer Änderung des Eventdatums explizit auslösen
               </p>
             </div>
             <div className="p-5">
@@ -975,7 +975,7 @@ export default async function EventCockpitPage({
               ) : (
                 <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600">
                   Die Neuberechnung kann nur durch Admins oder Event Leads
-                  ausgelÃ¶st werden.
+                  ausgelöst werden.
                 </p>
               )}
             </div>
@@ -986,7 +986,7 @@ export default async function EventCockpitPage({
               <div className="border-b border-slate-200 px-5 py-4">
                 <h2 className="text-brand-950 font-bold">Vorlage aus Event</h2>
                 <p className="text-muted mt-1 text-xs">
-                  Aktuelle Aufgabenliste fÃ¼r gleiche kÃ¼nftige Events sichern
+                  Aktuelle Aufgabenliste für gleiche künftige Events sichern
                 </p>
               </div>
               <div className="p-5">
@@ -1004,13 +1004,13 @@ export default async function EventCockpitPage({
       <div className="mt-6 space-y-6">
         <Card>
           <div className="border-b border-slate-200 px-5 py-4">
-            <h2 className="text-brand-950 font-bold">NÃ¤chste 5 Deadlines</h2>
+            <h2 className="text-brand-950 font-bold">Nächste 5 Deadlines</h2>
             <p className="text-muted mt-1 text-xs">
-              Die nÃ¤chsten noch offenen Aufgaben ab heute
+              Die nächsten noch offenen Aufgaben ab heute
             </p>
           </div>
           <TaskTable
-            emptyDescription="Es gibt derzeit keine offenen Aufgaben mit einer zukÃ¼nftigen FÃ¤lligkeit."
+            emptyDescription="Es gibt derzeit keine offenen Aufgaben mit einer zukünftigen Fälligkeit."
             emptyTitle="Keine anstehenden Deadlines"
             tasks={nextDeadlines}
           />
@@ -1018,14 +1018,14 @@ export default async function EventCockpitPage({
 
         <Card>
           <div className="border-b border-slate-200 px-5 py-4">
-            <h2 className="font-bold text-red-800">ÃœberfÃ¤llige Aufgaben</h2>
+            <h2 className="font-bold text-red-800">Überfällige Aufgaben</h2>
             <p className="text-muted mt-1 text-xs">
-              Offene Aufgaben mit Ã¼berschrittener FÃ¤lligkeit
+              Offene Aufgaben mit überschrittener Fälligkeit
             </p>
           </div>
           <TaskTable
-            emptyDescription="Alle fÃ¤lligen Aufgaben sind erledigt oder liegen noch in der Zukunft."
-            emptyTitle="Keine Ã¼berfÃ¤lligen Aufgaben"
+            emptyDescription="Alle fälligen Aufgaben sind erledigt oder liegen noch in der Zukunft."
+            emptyTitle="Keine überfälligen Aufgaben"
             tasks={overdueTasks}
           />
         </Card>
@@ -1034,7 +1034,7 @@ export default async function EventCockpitPage({
           <div className="border-b border-slate-200 px-5 py-4">
             <h2 className="font-bold text-red-800">Kritische Aufgaben</h2>
             <p className="text-muted mt-1 text-xs">
-              Offene Aufgaben, die fÃ¼r den Eventerfolg besonders relevant sind
+              Offene Aufgaben, die für den Eventerfolg besonders relevant sind
             </p>
           </div>
           <TaskTable
@@ -1046,9 +1046,9 @@ export default async function EventCockpitPage({
 
         <Card>
           <div className="border-b border-slate-200 px-5 py-4">
-            <h2 className="text-brand-950 font-bold">Ã„nderungsverlauf</h2>
+            <h2 className="text-brand-950 font-bold">Änderungsverlauf</h2>
             <p className="text-muted mt-1 text-xs">
-              Die letzten wichtigen Ã„nderungen an Event und Aufgaben
+              Die letzten wichtigen Änderungen an Event und Aufgaben
             </p>
           </div>
           <AuditHistory logs={auditLogs} />
