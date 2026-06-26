@@ -8,6 +8,7 @@ import {
   PrimaryLink,
   StatusBadge,
 } from "@/components/ui";
+import { PaginationControls } from "@/components/pagination";
 import { TaskStatus } from "@/generated/prisma/client";
 import { getCurrentUser } from "@/lib/current-user";
 import { hasPermission, Permission } from "@/lib/permissions";
@@ -48,6 +49,11 @@ type CurrentUser = Awaited<ReturnType<typeof getCurrentUser>>;
 
 function firstValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function getPage(value: string | string[] | undefined) {
+  const page = Number(firstValue(value) ?? "1");
+  return Number.isInteger(page) && page > 0 ? page : 1;
 }
 
 function getTaskRowPresentation(task: PlanningTask, today: Date) {
@@ -308,6 +314,16 @@ function TaskPlanningTable({
                         Details bearbeiten
                       </Link>
                     ) : null}
+                    {canChangeStatus && task.status === TaskStatus.OPEN ? (
+                      <StatusAction
+                        className="bg-blue-100 text-blue-800 hover:bg-blue-200"
+                        eventId={eventId}
+                        status={TaskStatus.IN_PROGRESS}
+                        taskId={task.id}
+                      >
+                        In Arbeit
+                      </StatusAction>
+                    ) : null}
                     {canChangeStatus && isOpenTask(task) ? (
                       <StatusAction
                         className="bg-slate-200 text-slate-700 hover:bg-slate-300"
@@ -363,7 +379,7 @@ export default async function EventTasksPage({
       ? readinessAreaValue
       : undefined,
   };
-  const planning = await getEventTaskPlanning(id, filters);
+  const planning = await getEventTaskPlanning(id, filters, getPage(query.page));
   const currentUser = await getCurrentUser();
 
   if (!planning.event) {
@@ -578,7 +594,7 @@ export default async function EventTasksPage({
 
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-semibold text-slate-700">
-          {planning.tasks.length} von {planning.totalTasks} Aufgaben
+          {planning.filteredTasks} passende von {planning.totalTasks} Aufgaben
         </p>
         <p className="text-xs leading-5 text-slate-500">
           Checkbox: als erledigt markieren · Details bearbeiten: Inhalt,
@@ -723,6 +739,17 @@ export default async function EventTasksPage({
                               Details bearbeiten
                             </Link>
                           ) : null}
+                          {canChangeStatus &&
+                          task.status === TaskStatus.OPEN ? (
+                            <StatusAction
+                              className="bg-blue-100 text-blue-800 hover:bg-blue-200"
+                              eventId={event.id}
+                              status={TaskStatus.IN_PROGRESS}
+                              taskId={task.id}
+                            >
+                              In Arbeit
+                            </StatusAction>
+                          ) : null}
                           {canChangeStatus && isOpenTask(task) ? (
                             <StatusAction
                               className="bg-slate-200 text-slate-700 hover:bg-slate-300"
@@ -752,6 +779,12 @@ export default async function EventTasksPage({
           </div>
         )}
       </Card>
+
+      <PaginationControls
+        basePath={`/events/${event.id}/tasks`}
+        pagination={planning.pagination}
+        query={query}
+      />
 
       {completedTasks.length > 0 ? (
         <details className="shadow-card mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white">

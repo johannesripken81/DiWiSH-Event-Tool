@@ -4,10 +4,9 @@ import { redirect } from "next/navigation";
 
 import { Card, EmptyState, PageHeader, StatusBadge } from "@/components/ui";
 import { getCurrentUser } from "@/lib/current-user";
-import { getDb } from "@/lib/db";
 import { hasPermission, Permission } from "@/lib/permissions";
-import { calculateTaskMetrics, getTodayUtc } from "@/modules/events/metrics";
 import { formatDate } from "@/modules/events/presentation";
+import { getTaskOverviewEvents } from "@/modules/tasks/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -22,20 +21,7 @@ export default async function TasksPage() {
     redirect("/");
   }
 
-  const db = getDb();
-  const today = getTodayUtc();
-  const events = await db.event.findMany({
-    include: {
-      tasks: {
-        select: {
-          status: true,
-          dueDate: true,
-          isCritical: true,
-        },
-      },
-    },
-    orderBy: [{ eventDate: "asc" }, { title: "asc" }],
-  });
+  const events = await getTaskOverviewEvents();
 
   return (
     <>
@@ -66,58 +52,56 @@ export default async function TasksPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {events.map((event) => {
-                  const metrics = calculateTaskMetrics(event.tasks, today);
-
-                  return (
-                    <tr className="hover:bg-slate-50/80" key={event.id}>
-                      <td className="px-5 py-4 font-bold text-slate-800">
-                        {event.title}
-                      </td>
-                      <td className="px-4 py-4 text-slate-600">
-                        {formatDate(event.eventDate)}
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex min-w-32 items-center gap-2">
-                          <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200">
-                            <div
-                              className="bg-brand-700 h-full rounded-full"
-                              style={{ width: `${metrics.progress}%` }}
-                            />
-                          </div>
-                          <span className="font-bold text-slate-700">
-                            {metrics.progress}%
-                          </span>
+                {events.map((event) => (
+                  <tr className="hover:bg-slate-50/80" key={event.id}>
+                    <td className="px-5 py-4 font-bold text-slate-800">
+                      {event.title}
+                    </td>
+                    <td className="px-4 py-4 text-slate-600">
+                      {formatDate(event.eventDate)}
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex min-w-32 items-center gap-2">
+                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200">
+                          <div
+                            className="bg-brand-700 h-full rounded-full"
+                            style={{ width: `${event.metrics.progress}%` }}
+                          />
                         </div>
-                      </td>
-                      <td className="px-4 py-4 font-semibold text-slate-700">
-                        {metrics.openTasks}
-                      </td>
-                      <td className="px-4 py-4">
-                        <StatusBadge
-                          color={metrics.overdueTasks > 0 ? "red" : "green"}
-                        >
-                          {metrics.overdueTasks}
-                        </StatusBadge>
-                      </td>
-                      <td className="px-4 py-4">
-                        <StatusBadge
-                          color={metrics.criticalOpenTasks > 0 ? "red" : "gray"}
-                        >
-                          {metrics.criticalOpenTasks}
-                        </StatusBadge>
-                      </td>
-                      <td className="px-5 py-4 text-right">
-                        <Link
-                          className="bg-brand-900 hover:bg-brand-800 inline-flex min-h-9 items-center rounded-lg px-3 text-xs font-semibold text-white"
-                          href={`/events/${event.id}/tasks`}
-                        >
-                          Planung öffnen
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })}
+                        <span className="font-bold text-slate-700">
+                          {event.metrics.progress}%
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 font-semibold text-slate-700">
+                      {event.metrics.openTasks}
+                    </td>
+                    <td className="px-4 py-4">
+                      <StatusBadge
+                        color={event.metrics.overdueTasks > 0 ? "red" : "green"}
+                      >
+                        {event.metrics.overdueTasks}
+                      </StatusBadge>
+                    </td>
+                    <td className="px-4 py-4">
+                      <StatusBadge
+                        color={
+                          event.metrics.criticalOpenTasks > 0 ? "red" : "gray"
+                        }
+                      >
+                        {event.metrics.criticalOpenTasks}
+                      </StatusBadge>
+                    </td>
+                    <td className="px-5 py-4 text-right">
+                      <Link
+                        className="bg-brand-900 hover:bg-brand-800 inline-flex min-h-9 items-center rounded-lg px-3 text-xs font-semibold text-white"
+                        href={`/events/${event.id}/tasks`}
+                      >
+                        Planung öffnen
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

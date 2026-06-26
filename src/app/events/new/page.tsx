@@ -4,8 +4,11 @@ import { redirect } from "next/navigation";
 
 import { PageHeader } from "@/components/ui";
 import { getCurrentUser } from "@/lib/current-user";
-import { getDb } from "@/lib/db";
 import { hasPermission, Permission } from "@/lib/permissions";
+import {
+  getCachedEventTemplateOptions,
+  getCachedUserOptions,
+} from "@/modules/settings/reference-data";
 
 import { EventForm } from "./event-form";
 
@@ -22,29 +25,10 @@ export default async function NewEventPage() {
     redirect("/events");
   }
 
-  const db = getDb();
-  const users = await db.user.findMany({
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-    },
-    orderBy: [{ name: "asc" }],
-  });
-  const templates = await db.eventTemplate.findMany({
-    select: {
-      id: true,
-      name: true,
-      description: true,
-      _count: {
-        select: {
-          taskTemplates: true,
-        },
-      },
-    },
-    orderBy: { name: "asc" },
-  });
+  const [users, templates] = await Promise.all([
+    getCachedUserOptions(),
+    getCachedEventTemplateOptions(),
+  ]);
 
   return (
     <>

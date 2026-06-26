@@ -10,6 +10,7 @@ import {
 
 import {
   createEventTasksFromTemplate,
+  createTaskTemplatesFromEventTasks,
   type TemplateTaskSource,
 } from "./template-tasks";
 
@@ -123,5 +124,62 @@ describe("Template-Aufgabenerzeugung", () => {
 
     assert.equal(task.responsibleUserId, null);
     assert.equal(task.reviewerUserId, null);
+  });
+
+  it("erstellt Vorlagenaufgaben aus bestehenden Event-Aufgaben", () => {
+    const templates = createTaskTemplatesFromEventTasks(
+      [
+        {
+          title: "Einladung final versenden",
+          description: "Aktualisierte Fassung nutzen.",
+          phase: EventPhase.COMMUNICATION,
+          responsibleUser: { role: UserRole.COMMUNICATION },
+          reviewerUser: { role: UserRole.EVENT_LEAD },
+          priority: TaskPriority.HIGH,
+          dueDate: new Date("2026-09-30T00:00:00.000Z"),
+          offsetDays: -60,
+          approvalRequired: true,
+          isCritical: false,
+        },
+        {
+          title: "Offene Sonderaufgabe",
+          description: null,
+          phase: EventPhase.EVENT_DAY,
+          responsibleUser: null,
+          reviewerUser: null,
+          priority: TaskPriority.CRITICAL,
+          dueDate: null,
+          offsetDays: null,
+          approvalRequired: false,
+          isCritical: false,
+        },
+      ],
+      eventDate,
+    );
+
+    assert.deepEqual(templates, [
+      {
+        title: "Einladung final versenden",
+        description: "Aktualisierte Fassung nutzen.",
+        phase: EventPhase.COMMUNICATION,
+        defaultResponsibleRole: UserRole.COMMUNICATION,
+        defaultReviewerRole: UserRole.EVENT_LEAD,
+        priority: TaskPriority.HIGH,
+        offsetDays: -15,
+        approvalRequired: true,
+        isCritical: false,
+      },
+      {
+        title: "Offene Sonderaufgabe",
+        description: null,
+        phase: EventPhase.EVENT_DAY,
+        defaultResponsibleRole: UserRole.EVENT_LEAD,
+        defaultReviewerRole: null,
+        priority: TaskPriority.CRITICAL,
+        offsetDays: 0,
+        approvalRequired: false,
+        isCritical: true,
+      },
+    ]);
   });
 });

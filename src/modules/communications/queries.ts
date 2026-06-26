@@ -5,6 +5,7 @@ import {
 } from "@/generated/prisma/client";
 import { requireEventReadAccess } from "@/lib/current-user";
 import { getDb } from "@/lib/db";
+import { getCachedUserOptions } from "@/modules/settings/reference-data";
 
 export type CommunicationFilters = {
   channel?: CommunicationChannel;
@@ -74,14 +75,7 @@ export async function getCommunicationEditorData(
           },
         })
       : Promise.resolve(null),
-    db.user.findMany({
-      select: {
-        id: true,
-        name: true,
-        role: true,
-      },
-      orderBy: { name: "asc" },
-    }),
+    getCachedUserOptions(),
   ]);
 
   return { event, measure, users };

@@ -20,22 +20,6 @@ export type EventListFilters = {
   criticalOnly: boolean;
 };
 
-const eventListInclude = {
-  eventLead: {
-    select: {
-      id: true,
-      name: true,
-    },
-  },
-  tasks: {
-    select: {
-      status: true,
-      dueDate: true,
-      isCritical: true,
-    },
-  },
-} satisfies Prisma.EventInclude;
-
 const eventDetailInclude = {
   eventLead: {
     select: {
@@ -80,12 +64,26 @@ const eventDetailInclude = {
     },
   },
   evaluation: true,
-  participants: {
+  _count: {
     select: {
-      id: true,
+      participants: true,
     },
   },
 } satisfies Prisma.EventInclude;
+
+type EventListRow = {
+  id: string;
+  title: string;
+  eventDate: Date | string;
+  format: string | null;
+  eventLeadId: string | null;
+  eventLeadName: string | null;
+  totalTasks: number;
+  completedTasks: number;
+  openTasks: number;
+  overdueTasks: number;
+  criticalOpenTasks: number;
+};
 
 function addDays(date: Date, days: number) {
   const result = new Date(date);
@@ -93,65 +91,129 @@ function addDays(date: Date, days: number) {
   return result;
 }
 
-function getPeriodFilter(period: EventPeriod, today: Date) {
+function getProgress(completedTasks: number, totalTasks: number) {
+  return totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
+}
+
+function getPeriodSqlFilter(period: EventPeriod, today: Date) {
   switch (period) {
     case "upcoming":
-      return { gte: today };
+      return Prisma.sql`e."eventDate" >= ${today}`;
     case "next30":
-      return { gte: today, lte: addDays(today, 30) };
+      return Prisma.sql`e."eventDate" >= ${today} AND e."eventDate" <= ${addDays(
+        today,
+        30,
+      )}`;
     case "next90":
-      return { gte: today, lte: addDays(today, 90) };
+      return Prisma.sql`e."eventDate" >= ${today} AND e."eventDate" <= ${addDays(
+        today,
+        90,
+      )}`;
     case "past":
-      return { lt: today };
+      return Prisma.sql`e."eventDate" < ${today}`;
     case "all":
-      return undefined;
+      return null;
   }
+}
+
+function getEventListWhereSql(filters: EventListFilters, today: Date) {
+  const conditions = [
+    getPeriodSqlFilter(filters.period, today),
+    filters.format ? Prisma.sql`e.format = ${filters.format}` : null,
+    filters.eventLeadId
+      ? Prisma.sql`e."eventLeadId" = ${filters.eventLeadId}`
+      : null,
+    filters.criticalOnly
+      ? Prisma.sql`EXISTS (
+          SELECT 1
+          FROM "EventTask" critical_task
+          WHERE critical_task."eventId" = e.id
+            AND critical_task."isCritical" = true
+            AND critical_task.status::text NOT IN (${Prisma.join([
+              ...CLOSED_TASK_STATUSES,
+            ])})
+        )`
+      : null,
+  ].filter((condition): condition is Prisma.Sql => condition !== null);
+
+  return conditions.length > 0
+    ? Prisma.sql`WHERE ${Prisma.join(conditions, " AND ")}`
+    : Prisma.empty;
 }
 
 export async function getEventListData(filters: EventListFilters) {
   await requireEventReadAccess();
   const db = getDb();
   const today = getTodayUtc();
-  const where: Prisma.EventWhereInput = {
-    eventDate: getPeriodFilter(filters.period, today),
-    format: filters.format,
-    eventLeadId: filters.eventLeadId,
-    tasks: filters.criticalOnly
-      ? {
-          some: {
-            isCritical: true,
-            status: {
-              notIn: [...CLOSED_TASK_STATUSES],
-            },
-          },
-        }
-      : undefined,
-  };
+  const whereSql = getEventListWhereSql(filters, today);
+  const openStatusFilter = Prisma.sql`NOT IN (${Prisma.join([
+    ...CLOSED_TASK_STATUSES,
+  ])})`;
 
-  const [events, formatRecords, eventLeads, totalEvents] = await Promise.all([
-    db.event.findMany({
-      where,
-      include: eventListInclude,
-      orderBy: [{ eventDate: "asc" }, { title: "asc" }],
-    }),
-    db.event.findMany({
-      where: { format: { not: null } },
-      select: { format: true },
-      distinct: ["format"],
-      orderBy: { format: "asc" },
-    }),
-    db.user.findMany({
-      where: { leadEvents: { some: {} } },
-      select: { id: true, name: true },
-      orderBy: { name: "asc" },
-    }),
-    db.event.count(),
-  ]);
+  const [eventRows, formatRecords, eventLeads, totalEvents] = await Promise.all(
+    [
+      db.$queryRaw<EventListRow[]>(Prisma.sql`
+      SELECT
+        e.id,
+        e.title,
+        e."eventDate",
+        e.format,
+        u.id AS "eventLeadId",
+        u.name AS "eventLeadName",
+        COUNT(t.id) FILTER (WHERE t.status::text <> ${TaskStatus.CANCELLED})::int AS "totalTasks",
+        COUNT(t.id) FILTER (WHERE t.status::text = ${TaskStatus.COMPLETED})::int AS "completedTasks",
+        COUNT(t.id) FILTER (WHERE t.status::text ${openStatusFilter})::int AS "openTasks",
+        COUNT(t.id) FILTER (
+          WHERE t.status::text ${openStatusFilter}
+            AND t."dueDate" IS NOT NULL
+            AND t."dueDate" < ${today}
+        )::int AS "overdueTasks",
+        COUNT(t.id) FILTER (
+          WHERE t.status::text ${openStatusFilter}
+            AND t."isCritical" = true
+        )::int AS "criticalOpenTasks"
+      FROM "Event" e
+      LEFT JOIN "User" u ON u.id = e."eventLeadId"
+      LEFT JOIN "EventTask" t ON t."eventId" = e.id
+      ${whereSql}
+      GROUP BY e.id, u.id, u.name
+      ORDER BY e."eventDate" ASC, e.title ASC
+    `),
+      db.event.findMany({
+        where: { format: { not: null } },
+        select: { format: true },
+        distinct: ["format"],
+        orderBy: { format: "asc" },
+      }),
+      db.user.findMany({
+        where: { leadEvents: { some: {} } },
+        select: { id: true, name: true },
+        orderBy: { name: "asc" },
+      }),
+      db.event.count(),
+    ],
+  );
 
   return {
-    events: events.map((event) => ({
-      ...event,
-      metrics: calculateTaskMetrics(event.tasks, today),
+    events: eventRows.map((event) => ({
+      id: event.id,
+      title: event.title,
+      eventDate: new Date(event.eventDate),
+      format: event.format,
+      eventLead: event.eventLeadId
+        ? {
+            id: event.eventLeadId,
+            name: event.eventLeadName ?? "Unbekannt",
+          }
+        : null,
+      metrics: {
+        totalTasks: event.totalTasks,
+        completedTasks: event.completedTasks,
+        openTasks: event.openTasks,
+        overdueTasks: event.overdueTasks,
+        criticalOpenTasks: event.criticalOpenTasks,
+        progress: getProgress(event.completedTasks, event.totalTasks),
+      },
     })),
     formats: formatRecords.flatMap(({ format }) => (format ? [format] : [])),
     eventLeads,
@@ -210,7 +272,7 @@ export async function getEventCockpit(id: string) {
   return {
     event,
     metrics: calculateTaskMetrics(event.tasks, today),
-    participantMetrics: { total: event.participants.length },
+    participantMetrics: { total: event._count.participants },
     readiness: calculateReadinessScore(event, event.tasks),
     nextDeadlines,
     overdueTasks,

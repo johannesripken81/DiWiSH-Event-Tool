@@ -6,6 +6,8 @@ import {
 } from "@/generated/prisma/enums";
 import { calculateDueDate } from "@/modules/tasks/reverse-planning";
 
+const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
+
 export type TemplateTaskSource = {
   title: string;
   description: string | null;
@@ -14,6 +16,19 @@ export type TemplateTaskSource = {
   defaultReviewerRole: UserRole | null;
   priority: TaskPriority;
   offsetDays: number;
+  approvalRequired: boolean;
+  isCritical: boolean;
+};
+
+export type EventTaskTemplateSource = {
+  title: string;
+  description: string | null;
+  phase: EventPhase;
+  responsibleUser: { role: UserRole } | null;
+  reviewerUser: { role: UserRole } | null;
+  priority: TaskPriority;
+  dueDate: Date | null;
+  offsetDays: number | null;
   approvalRequired: boolean;
   isCritical: boolean;
 };
@@ -70,6 +85,38 @@ function resolveUserForRole({
     users.find((user) => user.role === role && user.id !== excludeUserId)?.id ??
     null
   );
+}
+
+function getUtcDateOnlyTime(date: Date) {
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+}
+
+function getTemplateOffsetDays(task: EventTaskTemplateSource, eventDate: Date) {
+  if (task.dueDate) {
+    return Math.round(
+      (getUtcDateOnlyTime(task.dueDate) - getUtcDateOnlyTime(eventDate)) /
+        MILLISECONDS_PER_DAY,
+    );
+  }
+
+  return task.offsetDays ?? 0;
+}
+
+export function createTaskTemplatesFromEventTasks(
+  tasks: EventTaskTemplateSource[],
+  eventDate: Date,
+): TemplateTaskSource[] {
+  return tasks.map((task) => ({
+    title: task.title,
+    description: task.description,
+    phase: task.phase,
+    defaultResponsibleRole: task.responsibleUser?.role ?? UserRole.EVENT_LEAD,
+    defaultReviewerRole: task.reviewerUser?.role ?? null,
+    priority: task.priority,
+    offsetDays: getTemplateOffsetDays(task, eventDate),
+    approvalRequired: task.approvalRequired,
+    isCritical: task.isCritical || task.priority === TaskPriority.CRITICAL,
+  }));
 }
 
 export function createEventTasksFromTemplate(

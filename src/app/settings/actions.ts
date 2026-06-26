@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
@@ -20,6 +20,7 @@ import {
   parseWorkspaceSettings,
   workspaceSettingsKey,
 } from "@/modules/settings/settings";
+import { referenceDataCacheTags } from "@/modules/settings/reference-data";
 
 async function requireAdmin() {
   const currentUser = await getCurrentUser();
@@ -113,6 +114,7 @@ export async function createUserAction(formData: FormData) {
   }
 
   clearCurrentUserCache();
+  revalidateTag(referenceDataCacheTags.users, "max");
   revalidatePath("/settings");
   settingsRedirect({ saved: "team" }, returnTo);
 }
@@ -188,6 +190,7 @@ export async function updateUserAction(formData: FormData) {
   }
 
   clearCurrentUserCache();
+  revalidateTag(referenceDataCacheTags.users, "max");
   revalidatePath("/settings");
   settingsRedirect({ saved: "team" }, returnTo);
 }
@@ -220,6 +223,7 @@ export async function deleteUserAction(formData: FormData) {
   await db.user.delete({ where: { id: userId } });
 
   clearCurrentUserCache();
+  revalidateTag(referenceDataCacheTags.users, "max");
   revalidatePath("/settings");
   settingsRedirect({ saved: "team" }, returnTo);
 }
@@ -249,6 +253,7 @@ export async function createEventTemplateAction(formData: FormData) {
     );
   }
 
+  revalidateTag(referenceDataCacheTags.eventTemplates, "max");
   revalidatePath("/settings");
   settingsRedirect({ saved: "templates" }, returnTo);
 }
@@ -258,6 +263,7 @@ export async function ensureDefaultEventTemplatesAction(formData: FormData) {
   const returnTo = getSettingsReturnTo(formData);
   const result = await ensureDefaultEventTemplates();
 
+  revalidateTag(referenceDataCacheTags.eventTemplates, "max");
   revalidatePath("/settings");
   settingsRedirect(
     {
@@ -299,6 +305,7 @@ export async function updateEventTemplateAction(formData: FormData) {
     );
   }
 
+  revalidateTag(referenceDataCacheTags.eventTemplates, "max");
   revalidatePath("/settings");
   revalidatePath(returnTo);
   settingsRedirect({ saved: "templates" }, returnTo);
@@ -315,6 +322,7 @@ export async function deleteEventTemplateAction(formData: FormData) {
 
   await getDb().eventTemplate.delete({ where: { id: templateId } });
 
+  revalidateTag(referenceDataCacheTags.eventTemplates, "max");
   revalidatePath("/settings");
   settingsRedirect({ saved: "templates" }, returnTo);
 }
@@ -345,6 +353,7 @@ export async function createTaskTemplateAction(formData: FormData) {
     },
   });
 
+  revalidateTag(referenceDataCacheTags.eventTemplates, "max");
   revalidatePath("/settings");
   revalidatePath(returnTo);
   settingsRedirect({ saved: "templates" }, returnTo);
@@ -380,6 +389,7 @@ export async function updateTaskTemplateAction(formData: FormData) {
     },
   });
 
+  revalidateTag(referenceDataCacheTags.eventTemplates, "max");
   revalidatePath("/settings");
   revalidatePath(returnTo);
   settingsRedirect({ saved: "templates" }, returnTo);
@@ -396,6 +406,7 @@ export async function deleteTaskTemplateAction(formData: FormData) {
 
   await getDb().taskTemplate.delete({ where: { id: taskTemplateId } });
 
+  revalidateTag(referenceDataCacheTags.eventTemplates, "max");
   revalidatePath("/settings");
   revalidatePath(returnTo);
   settingsRedirect({ saved: "templates" }, returnTo);

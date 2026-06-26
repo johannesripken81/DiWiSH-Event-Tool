@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "tsx --test src/lib/audit-log.test.ts src/lib/password.test.ts src/lib/permissions.test.ts src/modules/tasks/reverse-planning.test.ts src/modules/events/template-tasks.test.ts src/modules/events/default-templates.test.ts src/modules/events/readiness.test.ts src/modules/events/metrics.test.ts src/modules/communications/metrics.test.ts src/modules/evaluations/metrics.test.ts src/modules/participants/csv-import.test.ts src/modules/notifications/due-notifications.test.ts src/modules/notifications/due-task-emails.test.ts",
+    "test": "tsx --test src/lib/audit-log.test.ts src/lib/cron-auth.test.ts src/lib/login-rate-limit.test.ts src/lib/password.test.ts src/lib/permissions.test.ts src/modules/tasks/reverse-planning.test.ts src/modules/events/template-tasks.test.ts src/modules/events/default-templates.test.ts src/modules/events/readiness.test.ts src/modules/events/metrics.test.ts src/modules/communications/metrics.test.ts src/modules/evaluations/metrics.test.ts src/modules/participants/csv-import.test.ts src/modules/notifications/due-notifications.test.ts src/modules/notifications/due-task-emails.test.ts",
     "typecheck": "next typegen && tsc --noEmit",
     "quality": "npm run db:validate && npm run typecheck && npm run lint && npm test && npm run build",
     "postinstall": "prisma generate",
@@ -51,5 +51,9 @@
     "tailwindcss": "4.3.1",
     "tsx": "4.22.4",
     "typescript": "6.0.3"
+  },
+  "overrides": {
+    "@hono/node-server": "1.19.13",
+    "postcss": "8.5.15"
   }
 }

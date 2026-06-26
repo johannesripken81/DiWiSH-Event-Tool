@@ -4,11 +4,14 @@ import Link from "next/link";
 import { Card, EmptyHint, PageHeader, StatusBadge } from "@/components/ui";
 import { UserRole } from "@/generated/prisma/enums";
 import { getCurrentUser } from "@/lib/current-user";
-import { getDb } from "@/lib/db";
 import {
   getNotificationSettings,
   getWorkspaceSettings,
 } from "@/modules/settings/queries";
+import {
+  getCachedEventTemplateOptions,
+  getCachedSettingsUsers,
+} from "@/modules/settings/reference-data";
 
 import {
   createEventTemplateAction,
@@ -170,20 +173,13 @@ export default async function SettingsPage({
 }) {
   const query = await searchParams;
   const currentUser = await getCurrentUser();
-  const workspaceSettings = await getWorkspaceSettings();
-  const notificationSettings = await getNotificationSettings();
-  const db = getDb();
-  const users = await db.user.findMany({
-    orderBy: [{ role: "asc" }, { name: "asc" }],
-  });
-  const templates = await db.eventTemplate.findMany({
-    include: {
-      _count: {
-        select: { taskTemplates: true },
-      },
-    },
-    orderBy: { name: "asc" },
-  });
+  const [workspaceSettings, notificationSettings, users, templates] =
+    await Promise.all([
+      getWorkspaceSettings(),
+      getNotificationSettings(),
+      getCachedSettingsUsers(),
+      getCachedEventTemplateOptions(),
+    ]);
   const message = getMessage(query);
   const isAdmin = currentUser.role === UserRole.ADMIN;
   const emailDeliveryConfigured = Boolean(

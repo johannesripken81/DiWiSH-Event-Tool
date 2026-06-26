@@ -217,6 +217,7 @@ model Event {
   participants          EventParticipant[]
 
   @@index([eventDate])
+  @@index([format, eventDate])
   @@index([status, eventDate])
   @@index([eventLeadId])
   @@index([coLeadId])

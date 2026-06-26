@@ -49,6 +49,7 @@ export type SendDueTaskEmailsOptions = {
   db?: DbClient;
   from?: string;
   now?: Date;
+  recipientOverride?: string;
   replyTo?: string;
   sendEmail?: SendEmail;
 };
@@ -85,6 +86,13 @@ function getConfiguredAppBaseUrl() {
 
 export function getDueTaskEmailDeliveryKey(task: DueTaskEmailCandidate) {
   return `due-task-email:${task.id}:${formatDateKey(task.dueDate)}`;
+}
+
+export function getDueTaskEmailDigestDeliveryKey(
+  dueDate: Date,
+  recipientEmail: string,
+) {
+  return `due-task-email-digest:${formatDateKey(dueDate)}:${recipientEmail.toLowerCase()}`;
 }
 
 export function parseDueTaskEmailDeliveryState(
@@ -131,11 +139,13 @@ export function filterUnsentDueTaskEmailCandidates(
 export function buildDueTaskEmailMessage({
   appBaseUrl = getConfiguredAppBaseUrl(),
   from,
+  recipientOverride,
   replyTo,
   task,
 }: {
   appBaseUrl?: string;
   from: string;
+  recipientOverride?: string;
   replyTo?: string;
   task: DueTaskEmailCandidate;
 }): EmailMessage {
@@ -169,7 +179,94 @@ export function buildDueTaskEmailMessage({
 
   return {
     from,
-    to: task.responsibleUser.email,
+    to: recipientOverride || task.responsibleUser.email,
+    subject,
+    text,
+    html,
+    replyTo,
+  };
+}
+
+function groupTasksByResponsibleUser(tasks: DueTaskEmailCandidate[]) {
+  const groups = new Map<string, DueTaskEmailCandidate[]>();
+
+  for (const task of tasks) {
+    const key = `${task.responsibleUser.name} <${task.responsibleUser.email}>`;
+    groups.set(key, [...(groups.get(key) ?? []), task]);
+  }
+
+  return [...groups.entries()].sort(([first], [second]) =>
+    first.localeCompare(second, "de"),
+  );
+}
+
+export function buildDueTaskEmailDigestMessage({
+  appBaseUrl = getConfiguredAppBaseUrl(),
+  dueDate,
+  from,
+  recipient,
+  replyTo,
+  tasks,
+}: {
+  appBaseUrl?: string;
+  dueDate: Date;
+  from: string;
+  recipient: string;
+  replyTo?: string;
+  tasks: DueTaskEmailCandidate[];
+}): EmailMessage {
+  const dueDateLabel = formatDate(dueDate);
+  const groupedTasks = groupTasksByResponsibleUser(tasks);
+  const subject = `Heute fällige Aufgaben: ${tasks.length} ${
+    tasks.length === 1 ? "Aufgabe" : "Aufgaben"
+  }`;
+  const text = [
+    "Hallo DIWISH-Team,",
+    "",
+    `heute (${dueDateLabel}) sind folgende Aufgaben fällig:`,
+    "",
+    ...groupedTasks.flatMap(([responsible, responsibleTasks]) => [
+      responsible,
+      ...responsibleTasks.map((task) => {
+        const taskUrl = appBaseUrl
+          ? `${appBaseUrl}/events/${task.event.id}/tasks/${task.id}/edit`
+          : "";
+        return `- ${task.title} · ${task.event.title}${taskUrl ? ` · ${taskUrl}` : ""}`;
+      }),
+      "",
+    ]),
+    "Viele Grüße",
+    "DIWISH Event Tool",
+  ].join("\n");
+  const htmlGroups = groupedTasks
+    .map(
+      ([responsible, responsibleTasks]) => `
+      <h2 style="font-size:16px;margin:24px 0 8px;">${escapeHtml(responsible)}</h2>
+      <ul>
+        ${responsibleTasks
+          .map((task) => {
+            const taskUrl = appBaseUrl
+              ? `${appBaseUrl}/events/${task.event.id}/tasks/${task.id}/edit`
+              : "";
+            return `<li><strong>${escapeHtml(task.title)}</strong> · ${escapeHtml(
+              task.event.title,
+            )}${taskUrl ? ` · <a href="${escapeHtml(taskUrl)}">Aufgabe öffnen</a>` : ""}</li>`;
+          })
+          .join("")}
+      </ul>
+    `,
+    )
+    .join("");
+  const html = `
+    <p>Hallo DIWISH-Team,</p>
+    <p>heute (${escapeHtml(dueDateLabel)}) sind folgende Aufgaben fällig:</p>
+    ${htmlGroups}
+    <p>Viele Grüße<br />DIWISH Event Tool</p>
+  `;
+
+  return {
+    from,
+    to: recipient,
     subject,
     text,
     html,
@@ -242,6 +339,8 @@ export async function sendDueTodayTaskEmails(
   const today = startOfUtcDay(now);
   const notificationSettings = await getNotificationSettings(db);
   const from = options.from ?? process.env.EMAIL_FROM?.trim();
+  const recipientOverride =
+    options.recipientOverride ?? process.env.EMAIL_RECIPIENT_OVERRIDE?.trim();
   const replyTo = options.replyTo ?? process.env.EMAIL_REPLY_TO?.trim();
   const sender = options.sendEmail ?? sendResendEmail;
   const emailConfigured = Boolean(
@@ -264,6 +363,97 @@ export async function sendDueTodayTaskEmails(
     where: { key: dueTaskEmailDeliveriesKey },
   });
   const deliveryState = parseDueTaskEmailDeliveryState(setting?.value);
+
+  if (recipientOverride) {
+    const digestKey = getDueTaskEmailDigestDeliveryKey(
+      today,
+      recipientOverride,
+    );
+    const digestAlreadySent = Boolean(deliveryState.sent[digestKey]);
+
+    if (!from || !emailConfigured) {
+      return {
+        checkedTasks: candidates.length,
+        sentEmails: 0,
+        skippedEmails: candidates.length > 0 && !digestAlreadySent ? 1 : 0,
+        failedEmails: 0,
+        emailConfigured: false,
+        disabledBySettings: false,
+      };
+    }
+
+    if (candidates.length === 0 || digestAlreadySent) {
+      return {
+        checkedTasks: candidates.length,
+        sentEmails: 0,
+        skippedEmails: digestAlreadySent ? 1 : 0,
+        failedEmails: 0,
+        emailConfigured: true,
+        disabledBySettings: false,
+      };
+    }
+
+    let sentRecords: DueTaskEmailDeliveryRecord[] = [];
+    let failedEmails = 0;
+
+    try {
+      await sender(
+        buildDueTaskEmailDigestMessage({
+          appBaseUrl: options.appBaseUrl,
+          dueDate: today,
+          from,
+          recipient: recipientOverride,
+          replyTo,
+          tasks: candidates,
+        }),
+      );
+
+      sentRecords = [
+        {
+          key: digestKey,
+          taskId: "__daily_digest__",
+          userId: "__team__",
+          email: recipientOverride,
+          dueDate: formatDateKey(today),
+          sentAt: now.toISOString(),
+        },
+      ];
+    } catch (error) {
+      failedEmails = 1;
+      console.error("Due task digest email could not be sent", error);
+    }
+
+    if (sentRecords.length > 0) {
+      const latestSetting = await db.appSetting.findUnique({
+        where: { key: dueTaskEmailDeliveriesKey },
+      });
+      const latestState = parseDueTaskEmailDeliveryState(latestSetting?.value);
+      const nextState = compactDeliveryState({
+        sent: {
+          ...latestState.sent,
+          ...Object.fromEntries(
+            sentRecords.map((record) => [record.key, record]),
+          ),
+        },
+      });
+
+      await db.appSetting.upsert({
+        where: { key: dueTaskEmailDeliveriesKey },
+        create: { key: dueTaskEmailDeliveriesKey, value: nextState },
+        update: { value: nextState },
+      });
+    }
+
+    return {
+      checkedTasks: candidates.length,
+      sentEmails: sentRecords.length,
+      skippedEmails: 0,
+      failedEmails,
+      emailConfigured: true,
+      disabledBySettings: false,
+    };
+  }
+
   const pendingCandidates = filterUnsentDueTaskEmailCandidates(
     candidates,
     deliveryState,
@@ -289,6 +479,7 @@ export async function sendDueTodayTaskEmails(
         buildDueTaskEmailMessage({
           appBaseUrl: options.appBaseUrl,
           from,
+          recipientOverride,
           replyTo,
           task,
         }),

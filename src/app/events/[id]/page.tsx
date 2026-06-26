@@ -19,10 +19,12 @@ import {
   getTaskStatusPresentation,
 } from "@/modules/events/presentation";
 
+import { createEventTemplateFromEventAction } from "./planning-actions";
 import { RecalculateDueDatesForm } from "./recalculate-due-dates-form";
 
 export const dynamic = "force-dynamic";
 
+type SearchParams = Record<string, string | string[] | undefined>;
 type CockpitAuditLog = NonNullable<
   Awaited<ReturnType<typeof getEventCockpit>>
 >["auditLogs"][number];
@@ -32,6 +34,75 @@ type CockpitTask = NonNullable<
 type ReadinessAreaKey = NonNullable<
   Awaited<ReturnType<typeof getEventCockpit>>
 >["readiness"]["missingAreas"][number]["key"];
+
+function firstValue(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function TemplateSaveMessage({ query }: { query: SearchParams }) {
+  const result = firstValue(query.template);
+  const templateId = firstValue(query.templateId);
+  const taskCount = Number(firstValue(query.taskCount) ?? 0);
+
+  if (!result) {
+    return null;
+  }
+
+  const messages = {
+    saved: {
+      tone: "green",
+      text: `${taskCount.toLocaleString("de-DE")} ${
+        taskCount === 1 ? "Aufgabe wurde" : "Aufgaben wurden"
+      } als offene Standardaufgaben in einer neuen Vorlage gespeichert.`,
+    },
+    duplicate: {
+      tone: "red",
+      text: "Dieser Vorlagenname wird bereits verwendet. Bitte wähle einen anderen Namen.",
+    },
+    empty: {
+      tone: "red",
+      text: "Für dieses Event sind noch keine Aufgaben vorhanden, aus denen eine Vorlage erstellt werden kann.",
+    },
+    invalid: {
+      tone: "red",
+      text: "Bitte gib einen Namen für die neue Vorlage ein.",
+    },
+    denied: {
+      tone: "red",
+      text: "Du hast keine Berechtigung, aus diesem Event eine Vorlage zu erstellen.",
+    },
+    failed: {
+      tone: "red",
+      text: "Die Vorlage konnte nicht erstellt werden. Bitte versuche es erneut.",
+    },
+  } as const;
+  const message = messages[result as keyof typeof messages];
+
+  if (!message) {
+    return null;
+  }
+
+  return (
+    <div
+      className={`mb-5 rounded-xl border px-4 py-3 text-sm ${
+        message.tone === "green"
+          ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+          : "border-red-200 bg-red-50 text-red-800"
+      }`}
+      role="status"
+    >
+      <strong>{message.text}</strong>
+      {result === "saved" && templateId ? (
+        <Link
+          className="text-brand-700 ml-3 font-semibold hover:underline"
+          href={`/settings/event-templates/${templateId}`}
+        >
+          Vorlage öffnen
+        </Link>
+      ) : null}
+    </div>
+  );
+}
 
 function AuditHistory({ logs }: { logs: CockpitAuditLog[] }) {
   const dateTimeFormatter = new Intl.DateTimeFormat("de-DE", {
@@ -446,6 +517,64 @@ function DetailField({
   );
 }
 
+function SaveTemplateFromEventForm({
+  eventId,
+  eventTitle,
+  taskCount,
+}: {
+  eventId: string;
+  eventTitle: string;
+  taskCount: number;
+}) {
+  const defaultName = `Vorlage aus ${eventTitle}`.slice(0, 120);
+  const defaultDescription =
+    `Aus dem Event "${eventTitle}" erstellt. Aufgaben werden beim nächsten Event offen angelegt.`.slice(
+      0,
+      1000,
+    );
+
+  return (
+    <form action={createEventTemplateFromEventAction}>
+      <input name="eventId" type="hidden" value={eventId} />
+      <label className="block">
+        <span className="mb-1.5 block text-xs font-bold text-slate-600">
+          Name der Vorlage
+        </span>
+        <input
+          className="focus:border-brand-500 min-h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 outline-none"
+          defaultValue={defaultName}
+          maxLength={120}
+          name="name"
+          required
+        />
+      </label>
+      <label className="mt-3 block">
+        <span className="mb-1.5 block text-xs font-bold text-slate-600">
+          Beschreibung
+        </span>
+        <textarea
+          className="focus:border-brand-500 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm leading-6 text-slate-800 outline-none"
+          defaultValue={defaultDescription}
+          maxLength={1000}
+          name="description"
+          rows={3}
+        />
+      </label>
+      <p className="mt-3 text-xs leading-5 text-slate-500">
+        Übernimmt {taskCount.toLocaleString("de-DE")}{" "}
+        {taskCount === 1 ? "Aufgabe" : "Aufgaben"} aus diesem Event. Status,
+        Erledigungen und Synchronisationsdaten werden nicht übernommen.
+      </p>
+      <button
+        className="bg-brand-900 hover:bg-brand-800 mt-4 inline-flex min-h-10 w-full items-center justify-center rounded-lg px-4 text-sm font-semibold text-white transition"
+        type="submit"
+      >
+        Als Vorlage speichern
+      </button>
+    </form>
+  );
+}
+
 function ModuleActionLink({
   title,
   description,
@@ -537,7 +666,7 @@ export default async function EventCockpitPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  searchParams: Promise<SearchParams>;
 }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const cockpit = await getEventCockpit(id);
@@ -557,8 +686,6 @@ export default async function EventCockpitPage({
     criticalTasks,
     auditLogs,
   } = cockpit;
-  const firstValue = (value: string | string[] | undefined) =>
-    Array.isArray(value) ? value[0] : value;
   const planningResult =
     firstValue(query.planning) === "recalculated"
       ? {
@@ -719,6 +846,8 @@ export default async function EventCockpitPage({
         </div>
       ) : null}
 
+      <TemplateSaveMessage query={query} />
+
       <ReadinessCard eventId={event.id} readiness={readiness} />
 
       <ParticipantCard eventId={event.id} metrics={participantMetrics} />
@@ -851,6 +980,24 @@ export default async function EventCockpitPage({
               )}
             </div>
           </Card>
+
+          {canManageEvents ? (
+            <Card>
+              <div className="border-b border-slate-200 px-5 py-4">
+                <h2 className="text-brand-950 font-bold">Vorlage aus Event</h2>
+                <p className="text-muted mt-1 text-xs">
+                  Aktuelle Aufgabenliste fÃ¼r gleiche kÃ¼nftige Events sichern
+                </p>
+              </div>
+              <div className="p-5">
+                <SaveTemplateFromEventForm
+                  eventId={event.id}
+                  eventTitle={event.title}
+                  taskCount={event.tasks.length}
+                />
+              </div>
+            </Card>
+          ) : null}
         </div>
       </div>
 
