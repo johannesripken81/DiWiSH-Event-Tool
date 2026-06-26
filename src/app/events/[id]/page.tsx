@@ -19,10 +19,12 @@ import {
   getTaskStatusPresentation,
 } from "@/modules/events/presentation";
 
+import { createEventTemplateFromEventAction } from "./planning-actions";
 import { RecalculateDueDatesForm } from "./recalculate-due-dates-form";
 
 export const dynamic = "force-dynamic";
 
+type SearchParams = Record<string, string | string[] | undefined>;
 type CockpitAuditLog = NonNullable<
   Awaited<ReturnType<typeof getEventCockpit>>
 >["auditLogs"][number];
@@ -32,6 +34,75 @@ type CockpitTask = NonNullable<
 type ReadinessAreaKey = NonNullable<
   Awaited<ReturnType<typeof getEventCockpit>>
 >["readiness"]["missingAreas"][number]["key"];
+
+function firstValue(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function TemplateSaveMessage({ query }: { query: SearchParams }) {
+  const result = firstValue(query.template);
+  const templateId = firstValue(query.templateId);
+  const taskCount = Number(firstValue(query.taskCount) ?? 0);
+
+  if (!result) {
+    return null;
+  }
+
+  const messages = {
+    saved: {
+      tone: "green",
+      text: `${taskCount.toLocaleString("de-DE")} ${
+        taskCount === 1 ? "Aufgabe wurde" : "Aufgaben wurden"
+      } als offene Standardaufgaben in einer neuen Vorlage gespeichert.`,
+    },
+    duplicate: {
+      tone: "red",
+      text: "Dieser Vorlagenname wird bereits verwendet. Bitte wÃ¤hle einen anderen Namen.",
+    },
+    empty: {
+      tone: "red",
+      text: "FÃ¼r dieses Event sind noch keine Aufgaben vorhanden, aus denen eine Vorlage erstellt werden kann.",
+    },
+    invalid: {
+      tone: "red",
+      text: "Bitte gib einen Namen fÃ¼r die neue Vorlage ein.",
+    },
+    denied: {
+      tone: "red",
+      text: "Du hast keine Berechtigung, aus diesem Event eine Vorlage zu erstellen.",
+    },
+    failed: {
+      tone: "red",
+      text: "Die Vorlage konnte nicht erstellt werden. Bitte versuche es erneut.",
+    },
+  } as const;
+  const message = messages[result as keyof typeof messages];
+
+  if (!message) {
+    return null;
+  }
+
+  return (
+    <div
+      className={`mb-5 rounded-xl border px-4 py-3 text-sm ${
+        message.tone === "green"
+          ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+          : "border-red-200 bg-red-50 text-red-800"
+      }`}
+      role="status"
+    >
+      <strong>{message.text}</strong>
+      {result === "saved" && templateId ? (
+        <Link
+          className="text-brand-700 ml-3 font-semibold hover:underline"
+          href={`/settings/event-templates/${templateId}`}
+        >
+          Vorlage Ã¶ffnen
+        </Link>
+      ) : null}
+    </div>
+  );
+}
 
 function AuditHistory({ logs }: { logs: CockpitAuditLog[] }) {
   const dateTimeFormatter = new Intl.DateTimeFormat("de-DE", {
@@ -45,8 +116,8 @@ function AuditHistory({ logs }: { logs: CockpitAuditLog[] }) {
   if (logs.length === 0) {
     return (
       <EmptyState
-        description="Neue wichtige Änderungen an Event und Aufgaben erscheinen automatisch an dieser Stelle."
-        title="Noch keine Änderungen protokolliert"
+        description="Neue wichtige Ã„nderungen an Event und Aufgaben erscheinen automatisch an dieser Stelle."
+        title="Noch keine Ã„nderungen protokolliert"
       />
     );
   }
@@ -67,7 +138,7 @@ function AuditHistory({ logs }: { logs: CockpitAuditLog[] }) {
                 <p className="mt-0.5 text-xs text-slate-500">
                   {log.entityType === "EventTask" ? "Aufgabe: " : "Event: "}
                   {log.entityLabel}
-                  {log.user ? ` · ${log.user.name}` : ""}
+                  {log.user ? ` Â· ${log.user.name}` : ""}
                 </p>
               </div>
               <time
@@ -94,7 +165,7 @@ function AuditHistory({ logs }: { logs: CockpitAuditLog[] }) {
                           <span className="text-slate-500 line-through">
                             {change.oldValue}
                           </span>
-                          <span className="mx-2 text-slate-400">→</span>
+                          <span className="mx-2 text-slate-400">â†’</span>
                         </>
                       ) : null}
                       <span className="font-semibold">{change.newValue}</span>
@@ -204,7 +275,7 @@ function ReadinessCard({
           </h2>
           {readiness.missingAreas.length === 0 ? (
             <p className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm leading-6 text-emerald-800">
-              Alle Readiness-Kriterien sind erfüllt. Aktuell gehen keine Punkte
+              Alle Readiness-Kriterien sind erfÃ¼llt. Aktuell gehen keine Punkte
               verloren.
             </p>
           ) : (
@@ -254,7 +325,7 @@ function EvaluationCard({
           <div>
             <h2 className="text-brand-950 font-bold">Evaluation & Wirkung</h2>
             <p className="text-muted mt-1 text-sm leading-6">
-              Für dieses Event wurden noch keine Kennzahlen oder Learnings
+              FÃ¼r dieses Event wurden noch keine Kennzahlen oder Learnings
               dokumentiert.
             </p>
           </div>
@@ -272,11 +343,11 @@ function EvaluationCard({
   const metrics = [
     {
       label: "Anmeldungen",
-      value: evaluation.registrations?.toLocaleString("de-DE") ?? "–",
+      value: evaluation.registrations?.toLocaleString("de-DE") ?? "â€“",
     },
     {
       label: "Teilnehmende",
-      value: evaluation.attendees?.toLocaleString("de-DE") ?? "–",
+      value: evaluation.attendees?.toLocaleString("de-DE") ?? "â€“",
     },
     {
       label: "No-Show-Quote",
@@ -286,26 +357,26 @@ function EvaluationCard({
       label: "Zielgruppenfit",
       value:
         evaluation.targetAudienceFit === null
-          ? "–"
+          ? "â€“"
           : `${evaluation.targetAudienceFit} / 5`,
     },
     {
       label: "Zufriedenheit",
       value:
         evaluation.satisfaction === null
-          ? "–"
+          ? "â€“"
           : `${evaluation.satisfaction.toLocaleString("de-DE")} / 5`,
     },
     {
       label: "NPS",
-      value: evaluation.netPromoterScore?.toLocaleString("de-DE") ?? "–",
+      value: evaluation.netPromoterScore?.toLocaleString("de-DE") ?? "â€“",
     },
   ];
   const learnings = [
     ["Qualitative Learnings", evaluation.qualitativeLearnings],
     ["Was lief gut?", evaluation.wentWell],
     ["Was war schwierig?", evaluation.wasDifficult],
-    ["Beim nächsten Mal anders", evaluation.nextTimeDifferent],
+    ["Beim nÃ¤chsten Mal anders", evaluation.nextTimeDifferent],
   ].filter((entry): entry is [string, string] => Boolean(entry[1]));
 
   return (
@@ -361,7 +432,7 @@ function EvaluationCard({
           {learnings.length === 0 ? (
             <p className="mt-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600">
               Kennzahlen sind vorhanden, qualitative Learnings wurden aber noch
-              nicht ergänzt.
+              nicht ergÃ¤nzt.
             </p>
           ) : (
             <dl className="mt-3 grid gap-3">
@@ -401,14 +472,14 @@ function ParticipantCard({
         <div>
           <h2 className="text-brand-950 font-bold">Teilnehmermanagement</h2>
           <p className="text-muted mt-1 text-xs">
-            Gepflegte Kontakte für dieses Event
+            Gepflegte Kontakte fÃ¼r dieses Event
           </p>
         </div>
         <Link
           className="text-brand-700 text-sm font-semibold hover:underline"
           href={`/events/${eventId}/participants`}
         >
-          Teilnehmerliste öffnen
+          Teilnehmerliste Ã¶ffnen
         </Link>
       </div>
       <div className="p-5">
@@ -443,6 +514,64 @@ function DetailField({
         {value || "Nicht hinterlegt"}
       </dd>
     </div>
+  );
+}
+
+function SaveTemplateFromEventForm({
+  eventId,
+  eventTitle,
+  taskCount,
+}: {
+  eventId: string;
+  eventTitle: string;
+  taskCount: number;
+}) {
+  const defaultName = `Vorlage aus ${eventTitle}`.slice(0, 120);
+  const defaultDescription =
+    `Aus dem Event "${eventTitle}" erstellt. Aufgaben werden beim nÃ¤chsten Event offen angelegt.`.slice(
+      0,
+      1000,
+    );
+
+  return (
+    <form action={createEventTemplateFromEventAction}>
+      <input name="eventId" type="hidden" value={eventId} />
+      <label className="block">
+        <span className="mb-1.5 block text-xs font-bold text-slate-600">
+          Name der Vorlage
+        </span>
+        <input
+          className="focus:border-brand-500 min-h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 outline-none"
+          defaultValue={defaultName}
+          maxLength={120}
+          name="name"
+          required
+        />
+      </label>
+      <label className="mt-3 block">
+        <span className="mb-1.5 block text-xs font-bold text-slate-600">
+          Beschreibung
+        </span>
+        <textarea
+          className="focus:border-brand-500 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm leading-6 text-slate-800 outline-none"
+          defaultValue={defaultDescription}
+          maxLength={1000}
+          name="description"
+          rows={3}
+        />
+      </label>
+      <p className="mt-3 text-xs leading-5 text-slate-500">
+        Ãœbernimmt {taskCount.toLocaleString("de-DE")} {" "}
+        {taskCount === 1 ? "Aufgabe" : "Aufgaben"} aus diesem Event. Status,
+        Erledigungen und Synchronisationsdaten werden nicht Ã¼bernommen.
+      </p>
+      <button
+        className="bg-brand-900 hover:bg-brand-800 mt-4 inline-flex min-h-10 w-full items-center justify-center rounded-lg px-4 text-sm font-semibold text-white transition"
+        type="submit"
+      >
+        Als Vorlage speichern
+      </button>
+    </form>
   );
 }
 
@@ -491,9 +620,9 @@ function TaskTable({
             <th className="px-5 py-3">Aufgabe</th>
             <th className="px-4 py-3">Phase</th>
             <th className="px-4 py-3">Verantwortlich</th>
-            <th className="px-4 py-3">Priorität</th>
+            <th className="px-4 py-3">PrioritÃ¤t</th>
             <th className="px-4 py-3">Status</th>
-            <th className="px-5 py-3 text-right">Fällig</th>
+            <th className="px-5 py-3 text-right">FÃ¤llig</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
@@ -537,7 +666,7 @@ export default async function EventCockpitPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  searchParams: Promise<SearchParams>;
 }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const cockpit = await getEventCockpit(id);
@@ -557,8 +686,6 @@ export default async function EventCockpitPage({
     criticalTasks,
     auditLogs,
   } = cockpit;
-  const firstValue = (value: string | string[] | undefined) =>
-    Array.isArray(value) ? value[0] : value;
   const planningResult =
     firstValue(query.planning) === "recalculated"
       ? {
@@ -589,18 +716,18 @@ export default async function EventCockpitPage({
     canManageEvents
       ? {
           title: "Event bearbeiten",
-          description: "Stammdaten, Rollen, Links oder Event löschen",
+          description: "Stammdaten, Rollen, Links oder Event lÃ¶schen",
           href: `/events/${event.id}/edit`,
         }
       : null,
     {
       title: "Aufgaben planen",
-      description: "Aufgaben, Status, Verantwortliche und Fälligkeiten",
+      description: "Aufgaben, Status, Verantwortliche und FÃ¤lligkeiten",
       href: `/events/${event.id}/tasks`,
     },
     {
       title: "Kommunikation planen",
-      description: "Kanäle, Botschaften, Freigaben und Kennzahlen",
+      description: "KanÃ¤le, Botschaften, Freigaben und Kennzahlen",
       href: `/events/${event.id}/communications`,
     },
     {
@@ -625,7 +752,7 @@ export default async function EventCockpitPage({
           className="text-brand-700 hover:text-brand-950 text-sm font-semibold"
           href="/events"
         >
-          ← Zurück zur Eventliste
+          â† ZurÃ¼ck zur Eventliste
         </Link>
       </div>
 
@@ -642,7 +769,7 @@ export default async function EventCockpitPage({
             </h1>
             <p className="text-muted mt-2 max-w-4xl text-sm leading-6 sm:text-base">
               {event.description ??
-                "Für dieses Event ist noch keine Beschreibung hinterlegt."}
+                "FÃ¼r dieses Event ist noch keine Beschreibung hinterlegt."}
             </p>
             <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:max-w-3xl">
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
@@ -709,15 +836,17 @@ export default async function EventCockpitPage({
           className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
           role="status"
         >
-          <strong>{planningResult.updated} Fälligkeiten aktualisiert.</strong>
+          <strong>{planningResult.updated} FÃ¤lligkeiten aktualisiert.</strong>
           {planningResult.skipped > 0
-            ? ` ${planningResult.skipped} manuell überschriebene Termine wurden geschützt.`
+            ? ` ${planningResult.skipped} manuell Ã¼berschriebene Termine wurden geschÃ¼tzt.`
             : ""}
           {planningResult.withoutOffset > 0
-            ? ` ${planningResult.withoutOffset} Aufgaben ohne Offset blieben unverändert.`
+            ? ` ${planningResult.withoutOffset} Aufgaben ohne Offset blieben unverÃ¤ndert.`
             : ""}
         </div>
       ) : null}
+
+      <TemplateSaveMessage query={query} />
 
       <ReadinessCard eventId={event.id} readiness={readiness} />
 
@@ -738,8 +867,8 @@ export default async function EventCockpitPage({
           value={metrics.openTasks}
         />
         <MetricCard
-          hint="Fälligkeit bereits überschritten"
-          label="Überfällig"
+          hint="FÃ¤lligkeit bereits Ã¼berschritten"
+          label="ÃœberfÃ¤llig"
           tone={metrics.overdueTasks > 0 ? "red" : "green"}
           value={metrics.overdueTasks}
         />
@@ -776,7 +905,7 @@ export default async function EventCockpitPage({
             />
             <DetailField
               className="sm:col-span-2"
-              label="Ziele, Nutzenversprechen, gewünschtes Ergebnis"
+              label="Ziele, Nutzenversprechen, gewÃ¼nschtes Ergebnis"
               value={event.goal}
             />
           </dl>
@@ -804,7 +933,7 @@ export default async function EventCockpitPage({
             {links.length === 0 ? (
               <div className="p-5">
                 <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600">
-                  Für dieses Event sind noch keine zentralen Links hinterlegt.
+                  FÃ¼r dieses Event sind noch keine zentralen Links hinterlegt.
                 </p>
               </div>
             ) : (
@@ -818,7 +947,7 @@ export default async function EventCockpitPage({
                     target="_blank"
                   >
                     {link.label}
-                    <span aria-hidden="true">↗</span>
+                    <span aria-hidden="true">â†—</span>
                   </a>
                 ))}
               </div>
@@ -827,9 +956,9 @@ export default async function EventCockpitPage({
 
           <Card>
             <div className="border-b border-slate-200 px-5 py-4">
-              <h2 className="text-brand-950 font-bold">Rückwärtsplanung</h2>
+              <h2 className="text-brand-950 font-bold">RÃ¼ckwÃ¤rtsplanung</h2>
               <p className="text-muted mt-1 text-xs">
-                Nach einer Änderung des Eventdatums explizit auslösen
+                Nach einer Ã„nderung des Eventdatums explizit auslÃ¶sen
               </p>
             </div>
             <div className="p-5">
@@ -846,24 +975,42 @@ export default async function EventCockpitPage({
               ) : (
                 <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600">
                   Die Neuberechnung kann nur durch Admins oder Event Leads
-                  ausgelöst werden.
+                  ausgelÃ¶st werden.
                 </p>
               )}
             </div>
           </Card>
+
+          {canManageEvents ? (
+            <Card>
+              <div className="border-b border-slate-200 px-5 py-4">
+                <h2 className="text-brand-950 font-bold">Vorlage aus Event</h2>
+                <p className="text-muted mt-1 text-xs">
+                  Aktuelle Aufgabenliste fÃ¼r gleiche kÃ¼nftige Events sichern
+                </p>
+              </div>
+              <div className="p-5">
+                <SaveTemplateFromEventForm
+                  eventId={event.id}
+                  eventTitle={event.title}
+                  taskCount={event.tasks.length}
+                />
+              </div>
+            </Card>
+          ) : null}
         </div>
       </div>
 
       <div className="mt-6 space-y-6">
         <Card>
           <div className="border-b border-slate-200 px-5 py-4">
-            <h2 className="text-brand-950 font-bold">Nächste 5 Deadlines</h2>
+            <h2 className="text-brand-950 font-bold">NÃ¤chste 5 Deadlines</h2>
             <p className="text-muted mt-1 text-xs">
-              Die nächsten noch offenen Aufgaben ab heute
+              Die nÃ¤chsten noch offenen Aufgaben ab heute
             </p>
           </div>
           <TaskTable
-            emptyDescription="Es gibt derzeit keine offenen Aufgaben mit einer zukünftigen Fälligkeit."
+            emptyDescription="Es gibt derzeit keine offenen Aufgaben mit einer zukÃ¼nftigen FÃ¤lligkeit."
             emptyTitle="Keine anstehenden Deadlines"
             tasks={nextDeadlines}
           />
@@ -871,14 +1018,14 @@ export default async function EventCockpitPage({
 
         <Card>
           <div className="border-b border-slate-200 px-5 py-4">
-            <h2 className="font-bold text-red-800">Überfällige Aufgaben</h2>
+            <h2 className="font-bold text-red-800">ÃœberfÃ¤llige Aufgaben</h2>
             <p className="text-muted mt-1 text-xs">
-              Offene Aufgaben mit überschrittener Fälligkeit
+              Offene Aufgaben mit Ã¼berschrittener FÃ¤lligkeit
             </p>
           </div>
           <TaskTable
-            emptyDescription="Alle fälligen Aufgaben sind erledigt oder liegen noch in der Zukunft."
-            emptyTitle="Keine überfälligen Aufgaben"
+            emptyDescription="Alle fÃ¤lligen Aufgaben sind erledigt oder liegen noch in der Zukunft."
+            emptyTitle="Keine Ã¼berfÃ¤lligen Aufgaben"
             tasks={overdueTasks}
           />
         </Card>
@@ -887,7 +1034,7 @@ export default async function EventCockpitPage({
           <div className="border-b border-slate-200 px-5 py-4">
             <h2 className="font-bold text-red-800">Kritische Aufgaben</h2>
             <p className="text-muted mt-1 text-xs">
-              Offene Aufgaben, die für den Eventerfolg besonders relevant sind
+              Offene Aufgaben, die fÃ¼r den Eventerfolg besonders relevant sind
             </p>
           </div>
           <TaskTable
@@ -899,9 +1046,9 @@ export default async function EventCockpitPage({
 
         <Card>
           <div className="border-b border-slate-200 px-5 py-4">
-            <h2 className="text-brand-950 font-bold">Änderungsverlauf</h2>
+            <h2 className="text-brand-950 font-bold">Ã„nderungsverlauf</h2>
             <p className="text-muted mt-1 text-xs">
-              Die letzten wichtigen Änderungen an Event und Aufgaben
+              Die letzten wichtigen Ã„nderungen an Event und Aufgaben
             </p>
           </div>
           <AuditHistory logs={auditLogs} />
