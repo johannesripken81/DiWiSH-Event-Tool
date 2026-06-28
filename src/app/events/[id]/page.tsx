@@ -1079,7 +1079,7 @@ export default async function EventCockpitPage({
               <div className="border-b border-slate-200 px-5 py-4">
                 <h2 className="text-brand-950 font-bold">Vorlage aus Event</h2>
                 <p className="text-muted mt-1 text-xs">
-                  Aktuelle Aufgabenliste fÃ¼r gleiche kÃ¼nftige Events sichern
+                  Aktuelle Aufgabenliste für gleiche künftige Events sichern
                 </p>
               </div>
               <div className="p-5">

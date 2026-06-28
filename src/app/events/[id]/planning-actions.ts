@@ -214,8 +214,8 @@ export async function recalculateTaskDueDatesAction(formData: FormData) {
           newValue: {
             dueDate: plan.dueDate.toISOString(),
             reason: overwriteManualOverrides
-              ? "Rückwärtsplanung mit bestätigtem Überschreiben"
-              : "Rückwärtsplanung",
+              ? "RÃ¼ckwÃ¤rtsplanung mit bestÃ¤tigtem Ãœberschreiben"
+              : "RÃ¼ckwÃ¤rtsplanung",
           },
         });
       }

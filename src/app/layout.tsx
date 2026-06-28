@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
+import { Analytics } from "@vercel/analytics/next";
 
 import { AppShell } from "@/components/app-shell";
 import { WebVitalsReporter } from "@/components/web-vitals-reporter";
@@ -31,6 +32,7 @@ export default async function RootLayout({
     <html lang="de">
       <body>
         <WebVitalsReporter />
+        <Analytics />
         <AppShell
           currentUser={
             currentUser
