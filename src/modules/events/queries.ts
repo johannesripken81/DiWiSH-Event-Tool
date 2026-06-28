@@ -724,7 +724,7 @@ export async function getEventCockpit(id: string) {
           u.name AS "userName",
           CASE
             WHEN l."entityType" = 'EventTask'
-              THEN COALESCE(t.title, 'GelÃ¶schte Aufgabe')
+              THEN COALESCE(t.title, 'Gelöschte Aufgabe')
             ELSE ${event.title}
           END AS "entityLabel"
         FROM "AuditLog" l
