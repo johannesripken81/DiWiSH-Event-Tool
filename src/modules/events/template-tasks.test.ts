@@ -40,7 +40,7 @@ function template(
 }
 
 describe("Template-Aufgabenerzeugung", () => {
-  it("erzeugt Aufgaben mit korrekten FÃ¤lligkeiten und Standardwerten", () => {
+  it("erzeugt Aufgaben mit korrekten Fälligkeiten und Standardwerten", () => {
     const tasks = createEventTasksFromTemplate(
       [
         template({
@@ -78,11 +78,11 @@ describe("Template-Aufgabenerzeugung", () => {
     assert.equal(tasks[1].dueDate.toISOString().slice(0, 10), "2026-10-18");
   });
 
-  it("weist Event Lead und Co-Lead getrennt als Verantwortung und PrÃ¼fung zu", () => {
+  it("weist Event Lead und Co-Lead getrennt als Verantwortung und Prüfung zu", () => {
     const [task] = createEventTasksFromTemplate(
       [
         template({
-          title: "Konzept prÃ¼fen",
+          title: "Konzept prüfen",
           defaultResponsibleRole: UserRole.EVENT_LEAD,
           defaultReviewerRole: UserRole.EVENT_LEAD,
           approvalRequired: true,
@@ -103,7 +103,7 @@ describe("Template-Aufgabenerzeugung", () => {
     assert.equal(task.approvalRequired, true);
   });
 
-  it("lÃ¤sst nicht verfÃ¼gbare Rollen bewusst unzugewiesen", () => {
+  it("lässt nicht verfügbare Rollen bewusst unzugewiesen", () => {
     const [task] = createEventTasksFromTemplate(
       [
         template({
