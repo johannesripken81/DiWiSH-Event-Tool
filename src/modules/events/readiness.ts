@@ -292,7 +292,7 @@ export function calculateReadinessScoreFromStats(
     ["Eventdatum", event.eventDate],
     ["Format", event.format],
     ["Location", event.location],
-    ["Ziele, Nutzenversprechen, gewÃ¼nschtes Ergebnis", event.goal],
+    ["Ziele, Nutzenversprechen, gewünschtes Ergebnis", event.goal],
     ["Zielgruppe", event.targetAudience],
     ["Event Lead", event.eventLeadId],
     ["Kommunikationsverantwortung", event.communicationOwnerId],
@@ -304,7 +304,7 @@ export function calculateReadinessScoreFromStats(
   const setupComplete = missingSetupFields.length === 0;
   const setupArea: ReadinessArea = {
     key: "setup",
-    label: "Event-Setup vollstÃ¤ndig",
+    label: "Event-Setup vollständig",
     maxPoints: 20,
     awardedPoints: setupComplete ? 20 : 0,
     complete: setupComplete,
@@ -322,10 +322,10 @@ export function calculateReadinessScoreFromStats(
     complete: followUpComplete,
     explanation:
       stats.followUpTotal === 0
-        ? "Keine Aufgaben fÃ¼r Feedback oder Nachbereitung angelegt."
+        ? "Keine Aufgaben für Feedback oder Nachbereitung angelegt."
         : followUpComplete
-          ? "Verantwortlichkeiten und FÃ¤lligkeiten sind hinterlegt."
-          : `${stats.followUpUnprepared} von ${stats.followUpTotal} Aufgaben fehlen Verantwortlichkeit oder FÃ¤lligkeit.`,
+          ? "Verantwortlichkeiten und Fälligkeiten sind hinterlegt."
+          : `${stats.followUpUnprepared} von ${stats.followUpTotal} Aufgaben fehlen Verantwortlichkeit oder Fälligkeit.`,
   };
   const areas = [
     setupArea,
@@ -345,7 +345,7 @@ export function calculateReadinessScoreFromStats(
     }),
     completionAreaFromCounts({
       key: "operations",
-      label: "Location, Catering und Technik geklÃ¤rt",
+      label: "Location, Catering und Technik geklärt",
       maxPoints: 20,
       remaining: stats.operationsRemaining,
       total: stats.operationsTotal,
