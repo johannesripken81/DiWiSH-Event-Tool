@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
 import { Card, EmptyState, StatusBadge } from "@/components/ui";
 import { getCurrentUser } from "@/lib/current-user";
@@ -9,7 +10,11 @@ import {
   getAuditActionLabel,
   getAuditChanges,
 } from "@/modules/audit/presentation";
-import { getEventCockpit } from "@/modules/events/queries";
+import {
+  getEventCockpitAuditLogs,
+  getEventCockpitOverview,
+  getEventCockpitTaskPreviews,
+} from "@/modules/events/queries";
 import {
   formatDate,
   formatEventDateTime,
@@ -25,15 +30,17 @@ import { RecalculateDueDatesForm } from "./recalculate-due-dates-form";
 export const dynamic = "force-dynamic";
 
 type SearchParams = Record<string, string | string[] | undefined>;
-type CockpitAuditLog = NonNullable<
-  Awaited<ReturnType<typeof getEventCockpit>>
->["auditLogs"][number];
-type CockpitTask = NonNullable<
-  Awaited<ReturnType<typeof getEventCockpit>>
->["event"]["tasks"][number];
-type ReadinessAreaKey = NonNullable<
-  Awaited<ReturnType<typeof getEventCockpit>>
->["readiness"]["missingAreas"][number]["key"];
+type EventCockpitOverview = NonNullable<
+  Awaited<ReturnType<typeof getEventCockpitOverview>>
+>;
+type CockpitAuditLog = Awaited<
+  ReturnType<typeof getEventCockpitAuditLogs>
+>[number];
+type CockpitTask = Awaited<
+  ReturnType<typeof getEventCockpitTaskPreviews>
+>["nextDeadlines"][number];
+type ReadinessAreaKey =
+  EventCockpitOverview["readiness"]["missingAreas"][number]["key"];
 
 function firstValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -217,9 +224,7 @@ function ReadinessCard({
   readiness,
 }: {
   eventId: string;
-  readiness: NonNullable<
-    Awaited<ReturnType<typeof getEventCockpit>>
-  >["readiness"];
+  readiness: EventCockpitOverview["readiness"];
 }) {
   const toneClasses = {
     green: {
@@ -314,7 +319,7 @@ function ReadinessCard({
 function EvaluationCard({
   event,
 }: {
-  event: NonNullable<Awaited<ReturnType<typeof getEventCockpit>>>["event"];
+  event: EventCockpitOverview["event"];
 }) {
   const evaluation = event.evaluation;
 
@@ -462,9 +467,7 @@ function ParticipantCard({
   metrics,
 }: {
   eventId: string;
-  metrics: NonNullable<
-    Awaited<ReturnType<typeof getEventCockpit>>
-  >["participantMetrics"];
+  metrics: EventCockpitOverview["participantMetrics"];
 }) {
   return (
     <Card className="mt-6 overflow-hidden">
@@ -561,7 +564,7 @@ function SaveTemplateFromEventForm({
         />
       </label>
       <p className="mt-3 text-xs leading-5 text-slate-500">
-        Übernimmt {taskCount.toLocaleString("de-DE")} {" "}
+        Übernimmt {taskCount.toLocaleString("de-DE")}{" "}
         {taskCount === 1 ? "Aufgabe" : "Aufgaben"} aus diesem Event. Status,
         Erledigungen und Synchronisationsdaten werden nicht übernommen.
       </p>
@@ -661,6 +664,101 @@ function TaskTable({
   );
 }
 
+function DeferredCockpitCard({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <Card>
+      <div className="border-b border-slate-200 px-5 py-4">
+        <h2 className="text-brand-950 font-bold">{title}</h2>
+        <p className="text-muted mt-1 text-xs">{description}</p>
+      </div>
+      <div className="space-y-3 p-5" aria-busy="true">
+        <div className="h-4 w-3/4 animate-pulse rounded bg-slate-200" />
+        <div className="h-4 w-1/2 animate-pulse rounded bg-slate-200" />
+        <div className="h-4 w-2/3 animate-pulse rounded bg-slate-200" />
+      </div>
+    </Card>
+  );
+}
+
+async function CockpitTaskPreviewSections({ eventId }: { eventId: string }) {
+  const { nextDeadlines, overdueTasks, criticalTasks } =
+    await getEventCockpitTaskPreviews(eventId);
+
+  return (
+    <>
+      <Card>
+        <div className="border-b border-slate-200 px-5 py-4">
+          <h2 className="text-brand-950 font-bold">Nächste 5 Deadlines</h2>
+          <p className="text-muted mt-1 text-xs">
+            Die nächsten noch offenen Aufgaben ab heute
+          </p>
+        </div>
+        <TaskTable
+          emptyDescription="Es gibt derzeit keine offenen Aufgaben mit einer zukünftigen Fälligkeit."
+          emptyTitle="Keine anstehenden Deadlines"
+          tasks={nextDeadlines}
+        />
+      </Card>
+
+      <Card>
+        <div className="border-b border-slate-200 px-5 py-4">
+          <h2 className="font-bold text-red-800">Überfällige Aufgaben</h2>
+          <p className="text-muted mt-1 text-xs">
+            Offene Aufgaben mit überschrittener Fälligkeit
+          </p>
+        </div>
+        <TaskTable
+          emptyDescription="Alle fälligen Aufgaben sind erledigt oder liegen noch in der Zukunft."
+          emptyTitle="Keine überfälligen Aufgaben"
+          tasks={overdueTasks}
+        />
+      </Card>
+
+      <Card>
+        <div className="border-b border-slate-200 px-5 py-4">
+          <h2 className="font-bold text-red-800">Kritische Aufgaben</h2>
+          <p className="text-muted mt-1 text-xs">
+            Offene Aufgaben, die für den Eventerfolg besonders relevant sind
+          </p>
+        </div>
+        <TaskTable
+          emptyDescription="Aktuell ist keine offene Aufgabe als kritisch markiert."
+          emptyTitle="Keine kritischen Aufgaben"
+          tasks={criticalTasks}
+        />
+      </Card>
+    </>
+  );
+}
+
+async function CockpitAuditSection({
+  eventId,
+  eventTitle,
+}: {
+  eventId: string;
+  eventTitle: string;
+}) {
+  const auditLogs = await getEventCockpitAuditLogs(eventId, eventTitle);
+
+  return (
+    <Card>
+      <div className="border-b border-slate-200 px-5 py-4">
+        <h2 className="text-brand-950 font-bold">Änderungsverlauf</h2>
+        <p className="text-muted mt-1 text-xs">
+          Die letzten wichtigen Änderungen an Event und Aufgaben
+        </p>
+      </div>
+      <AuditHistory logs={auditLogs} />
+    </Card>
+  );
+}
+
 export default async function EventCockpitPage({
   params,
   searchParams,
@@ -669,8 +767,10 @@ export default async function EventCockpitPage({
   searchParams: Promise<SearchParams>;
 }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
-  const cockpit = await getEventCockpit(id);
-  const currentUser = await getCurrentUser();
+  const [cockpit, currentUser] = await Promise.all([
+    getEventCockpitOverview(id),
+    getCurrentUser(),
+  ]);
 
   if (!cockpit) {
     notFound();
@@ -681,10 +781,7 @@ export default async function EventCockpitPage({
     metrics,
     participantMetrics,
     readiness,
-    nextDeadlines,
-    overdueTasks,
-    criticalTasks,
-    auditLogs,
+    taskSummary,
   } = cockpit;
   const planningResult =
     firstValue(query.planning) === "recalculated"
@@ -694,12 +791,8 @@ export default async function EventCockpitPage({
           withoutOffset: Number(firstValue(query.withoutOffset) ?? 0),
         }
       : null;
-  const tasksWithOffset = event.tasks.filter(
-    (task) => task.offsetDays !== null,
-  ).length;
-  const manualOverrideCount = event.tasks.filter(
-    (task) => task.offsetDays !== null && task.isDueDateManuallyOverridden,
-  ).length;
+  const tasksWithOffset = taskSummary.tasksWithOffset;
+  const manualOverrideCount = taskSummary.manualOverrideCount;
   const canManageEvents = hasPermission(currentUser, Permission.MANAGE_EVENTS);
   const links = [
     ["Eventlink", event.registrationUrl],
@@ -993,7 +1086,7 @@ export default async function EventCockpitPage({
                 <SaveTemplateFromEventForm
                   eventId={event.id}
                   eventTitle={event.title}
-                  taskCount={event.tasks.length}
+                  taskCount={taskSummary.taskCount}
                 />
               </div>
             </Card>
@@ -1002,57 +1095,27 @@ export default async function EventCockpitPage({
       </div>
 
       <div className="mt-6 space-y-6">
-        <Card>
-          <div className="border-b border-slate-200 px-5 py-4">
-            <h2 className="text-brand-950 font-bold">Nächste 5 Deadlines</h2>
-            <p className="text-muted mt-1 text-xs">
-              Die nächsten noch offenen Aufgaben ab heute
-            </p>
-          </div>
-          <TaskTable
-            emptyDescription="Es gibt derzeit keine offenen Aufgaben mit einer zukünftigen Fälligkeit."
-            emptyTitle="Keine anstehenden Deadlines"
-            tasks={nextDeadlines}
-          />
-        </Card>
+        <Suspense
+          fallback={
+            <DeferredCockpitCard
+              description="Deadlines und kritische Aufgaben werden nachgeladen."
+              title="Aufgabenlisten"
+            />
+          }
+        >
+          <CockpitTaskPreviewSections eventId={event.id} />
+        </Suspense>
 
-        <Card>
-          <div className="border-b border-slate-200 px-5 py-4">
-            <h2 className="font-bold text-red-800">Überfällige Aufgaben</h2>
-            <p className="text-muted mt-1 text-xs">
-              Offene Aufgaben mit überschrittener Fälligkeit
-            </p>
-          </div>
-          <TaskTable
-            emptyDescription="Alle fälligen Aufgaben sind erledigt oder liegen noch in der Zukunft."
-            emptyTitle="Keine überfälligen Aufgaben"
-            tasks={overdueTasks}
-          />
-        </Card>
-
-        <Card>
-          <div className="border-b border-slate-200 px-5 py-4">
-            <h2 className="font-bold text-red-800">Kritische Aufgaben</h2>
-            <p className="text-muted mt-1 text-xs">
-              Offene Aufgaben, die für den Eventerfolg besonders relevant sind
-            </p>
-          </div>
-          <TaskTable
-            emptyDescription="Aktuell ist keine offene Aufgabe als kritisch markiert."
-            emptyTitle="Keine kritischen Aufgaben"
-            tasks={criticalTasks}
-          />
-        </Card>
-
-        <Card>
-          <div className="border-b border-slate-200 px-5 py-4">
-            <h2 className="text-brand-950 font-bold">Änderungsverlauf</h2>
-            <p className="text-muted mt-1 text-xs">
-              Die letzten wichtigen Änderungen an Event und Aufgaben
-            </p>
-          </div>
-          <AuditHistory logs={auditLogs} />
-        </Card>
+        <Suspense
+          fallback={
+            <DeferredCockpitCard
+              description="Die letzten Änderungen werden nachgeladen."
+              title="Änderungsverlauf"
+            />
+          }
+        >
+          <CockpitAuditSection eventId={event.id} eventTitle={event.title} />
+        </Suspense>
       </div>
     </>
   );

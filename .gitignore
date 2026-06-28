@@ -34,3 +34,7 @@ yarn-error.log*
 
 # generated database client
 /src/generated/prisma
+
+.vercel
+.env*
+.codex/

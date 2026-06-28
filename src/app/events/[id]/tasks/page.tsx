@@ -8,6 +8,8 @@ import {
   PrimaryLink,
   StatusBadge,
 } from "@/components/ui";
+import { PaginationControls } from "@/components/pagination";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
 import { TaskStatus } from "@/generated/prisma/client";
 import { getCurrentUser } from "@/lib/current-user";
 import { hasPermission, Permission } from "@/lib/permissions";
@@ -48,6 +50,11 @@ type CurrentUser = Awaited<ReturnType<typeof getCurrentUser>>;
 
 function firstValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function getPage(value: string | string[] | undefined) {
+  const page = Number(firstValue(value) ?? "1");
+  return Number.isInteger(page) && page > 0 ? page : 1;
 }
 
 function getTaskRowPresentation(task: PlanningTask, today: Date) {
@@ -116,12 +123,12 @@ function StatusAction({
       <input name="eventId" type="hidden" value={eventId} />
       <input name="taskId" type="hidden" value={taskId} />
       <input name="status" type="hidden" value={status} />
-      <button
+      <PendingSubmitButton
         className={`inline-flex min-h-8 items-center rounded-md px-2.5 text-xs font-semibold transition ${className}`}
-        type="submit"
+        pendingLabel="Ändert..."
       >
         {children}
-      </button>
+      </PendingSubmitButton>
     </form>
   );
 }
@@ -178,15 +185,15 @@ function TaskDoneToggle({
       <input name="eventId" type="hidden" value={eventId} />
       <input name="taskId" type="hidden" value={task.id} />
       <input name="status" type="hidden" value={nextStatus} />
-      <button
-        aria-label={`${label}: ${task.title}`}
-        aria-pressed={isCompleted}
+      <PendingSubmitButton
+        ariaLabel={`${label}: ${task.title}`}
+        ariaPressed={isCompleted}
         className={checkboxClass}
+        pendingLabel="…"
         title={label}
-        type="submit"
       >
         {isCompleted ? "✓" : ""}
-      </button>
+      </PendingSubmitButton>
     </form>
   );
 }
@@ -215,7 +222,9 @@ function TaskPlanningTable({
             <th className="px-4 py-3">Priorität</th>
             <th className="px-4 py-3">Fällig am</th>
             <th className="px-4 py-3">Kritisch</th>
-            <th className="px-5 py-3 text-right">Aktionen</th>
+            <th className="sticky right-0 z-10 bg-slate-50 px-5 py-3 text-right">
+              Aktionen
+            </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
@@ -248,6 +257,7 @@ function TaskPlanningTable({
                         <Link
                           className="text-brand-950 hover:text-brand-700 font-bold"
                           href={`/events/${eventId}/tasks/${task.id}/edit`}
+                          prefetch={false}
                         >
                           {task.title}
                         </Link>
@@ -298,15 +308,26 @@ function TaskPlanningTable({
                     {task.isCritical ? "Ja" : "Nein"}
                   </span>
                 </td>
-                <td className="px-5 py-4">
+                <td className="sticky right-0 bg-white px-5 py-4 shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.35)]">
                   <div className="flex justify-end gap-2">
                     {canUpdateTask ? (
                       <Link
                         className="inline-flex min-h-8 items-center rounded-md border border-slate-300 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                         href={`/events/${eventId}/tasks/${task.id}/edit`}
+                        prefetch={false}
                       >
                         Details bearbeiten
                       </Link>
+                    ) : null}
+                    {canChangeStatus && task.status === TaskStatus.OPEN ? (
+                      <StatusAction
+                        className="bg-blue-100 text-blue-800 hover:bg-blue-200"
+                        eventId={eventId}
+                        status={TaskStatus.IN_PROGRESS}
+                        taskId={task.id}
+                      >
+                        In Arbeit
+                      </StatusAction>
                     ) : null}
                     {canChangeStatus && isOpenTask(task) ? (
                       <StatusAction
@@ -363,7 +384,7 @@ export default async function EventTasksPage({
       ? readinessAreaValue
       : undefined,
   };
-  const planning = await getEventTaskPlanning(id, filters);
+  const planning = await getEventTaskPlanning(id, filters, getPage(query.page));
   const currentUser = await getCurrentUser();
 
   if (!planning.event) {
@@ -578,7 +599,7 @@ export default async function EventTasksPage({
 
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-semibold text-slate-700">
-          {planning.tasks.length} von {planning.totalTasks} Aufgaben
+          {planning.filteredTasks} passende von {planning.totalTasks} Aufgaben
         </p>
         <p className="text-xs leading-5 text-slate-500">
           Checkbox: als erledigt markieren · Details bearbeiten: Inhalt,
@@ -628,7 +649,9 @@ export default async function EventTasksPage({
                   <th className="px-4 py-3">Priorität</th>
                   <th className="px-4 py-3">Fällig am</th>
                   <th className="px-4 py-3">Kritisch</th>
-                  <th className="px-5 py-3 text-right">Aktionen</th>
+                  <th className="sticky right-0 z-10 bg-slate-50 px-5 py-3 text-right">
+                    Aktionen
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -661,6 +684,7 @@ export default async function EventTasksPage({
                               <Link
                                 className="text-brand-950 hover:text-brand-700 font-bold"
                                 href={`/events/${event.id}/tasks/${task.id}/edit`}
+                                prefetch={false}
                               >
                                 {task.title}
                               </Link>
@@ -713,15 +737,27 @@ export default async function EventTasksPage({
                           {task.isCritical ? "Ja" : "Nein"}
                         </span>
                       </td>
-                      <td className="px-5 py-4">
+                      <td className="sticky right-0 bg-white px-5 py-4 shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.35)]">
                         <div className="flex justify-end gap-2">
                           {canUpdateTask ? (
                             <Link
                               className="inline-flex min-h-8 items-center rounded-md border border-slate-300 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                               href={`/events/${event.id}/tasks/${task.id}/edit`}
+                              prefetch={false}
                             >
                               Details bearbeiten
                             </Link>
+                          ) : null}
+                          {canChangeStatus &&
+                          task.status === TaskStatus.OPEN ? (
+                            <StatusAction
+                              className="bg-blue-100 text-blue-800 hover:bg-blue-200"
+                              eventId={event.id}
+                              status={TaskStatus.IN_PROGRESS}
+                              taskId={task.id}
+                            >
+                              In Arbeit
+                            </StatusAction>
                           ) : null}
                           {canChangeStatus && isOpenTask(task) ? (
                             <StatusAction
@@ -752,6 +788,12 @@ export default async function EventTasksPage({
           </div>
         )}
       </Card>
+
+      <PaginationControls
+        basePath={`/events/${event.id}/tasks`}
+        pagination={planning.pagination}
+        query={query}
+      />
 
       {completedTasks.length > 0 ? (
         <details className="shadow-card mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white">

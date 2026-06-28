@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { PlannerSyncStatus, Prisma } from "@/generated/prisma/client";
@@ -9,6 +9,7 @@ import { getCurrentUser } from "@/lib/current-user";
 import { getDb } from "@/lib/db";
 import { assertPermission, hasPermission, Permission } from "@/lib/permissions";
 import { createTaskTemplatesFromEventTasks } from "@/modules/events/template-tasks";
+import { referenceDataCacheTags } from "@/modules/settings/reference-data";
 import { planTaskDueDate } from "@/modules/tasks/reverse-planning";
 
 function revalidateEventViews(eventId: string) {
@@ -125,6 +126,7 @@ export async function createEventTemplateFromEventAction(formData: FormData) {
     redirectTemplateResult(event.id, { template: "failed" });
   }
 
+  revalidateTag(referenceDataCacheTags.eventTemplates, "max");
   revalidatePath("/settings");
   revalidatePath(`/settings/event-templates/${templateId}`);
   revalidateEventViews(event.id);
@@ -212,8 +214,8 @@ export async function recalculateTaskDueDatesAction(formData: FormData) {
           newValue: {
             dueDate: plan.dueDate.toISOString(),
             reason: overwriteManualOverrides
-              ? "RÃ¼ckwÃ¤rtsplanung mit bestÃ¤tigtem Ãœberschreiben"
-              : "RÃ¼ckwÃ¤rtsplanung",
+              ? "Rückwärtsplanung mit bestätigtem Überschreiben"
+              : "Rückwärtsplanung",
           },
         });
       }

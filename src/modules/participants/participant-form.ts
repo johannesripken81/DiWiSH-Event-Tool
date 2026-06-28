@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+import {
+  FollowUpStatus,
+  ParticipantRating,
+  ParticipantStatus,
+  ParticipantTargetGroup,
+} from "@/generated/prisma/enums";
+
 const requiredText = (label: string, maxLength: number) =>
   z
     .string()
@@ -18,6 +25,7 @@ export const participantFormSchema = z.object({
   participantId: optionalText("Teilnehmende Person", 100),
   firstName: requiredText("Vorname", 150),
   lastName: requiredText("Nachname", 150),
+  role: optionalText("Rolle/Funktion", 200),
   email: z
     .string()
     .trim()
@@ -25,6 +33,26 @@ export const participantFormSchema = z.object({
     .email("Bitte gib eine gültige E-Mail-Adresse ein.")
     .max(320, "E-Mail darf höchstens 320 Zeichen haben."),
   organization: optionalText("Organisation", 300),
+  targetGroupType: z.enum(ParticipantTargetGroup, {
+    error: "Bitte wähle eine Zielgruppe.",
+  }),
+  status: z.enum(ParticipantStatus, {
+    error: "Bitte wähle einen Status.",
+  }),
+  personallyInvited: z.boolean(),
+  registered: z.boolean(),
+  attended: z.boolean(),
+  noShowRisk: z.enum(ParticipantRating, {
+    error: "Bitte wähle ein No-Show-Risiko.",
+  }),
+  interestTopic: optionalText("Interessengebiet", 500),
+  matchmakingPotential: z.enum(ParticipantRating, {
+    error: "Bitte wähle ein Matchmaking-Potenzial.",
+  }),
+  followUpNeeded: z.boolean(),
+  followUpStatus: z.enum(FollowUpStatus, {
+    error: "Bitte wähle einen Follow-up-Status.",
+  }),
 });
 
 export type ParticipantFormValues = z.infer<typeof participantFormSchema>;
@@ -64,8 +92,19 @@ export function getEmptyParticipantFormValues(
     participantId: "",
     firstName: "",
     lastName: "",
+    role: "",
     email: "",
     organization: "",
+    targetGroupType: ParticipantTargetGroup.OTHER,
+    status: ParticipantStatus.IDENTIFIED,
+    personallyInvited: false,
+    registered: false,
+    attended: false,
+    noShowRisk: ParticipantRating.MEDIUM,
+    interestTopic: "",
+    matchmakingPotential: ParticipantRating.MEDIUM,
+    followUpNeeded: false,
+    followUpStatus: FollowUpStatus.NOT_REQUIRED,
   };
 }
 
@@ -82,8 +121,25 @@ export function getParticipantFormValues(
     participantId: getString(formData, "participantId"),
     firstName: getString(formData, "firstName"),
     lastName: getString(formData, "lastName"),
+    role: getString(formData, "role"),
     email: getString(formData, "email"),
     organization: getString(formData, "organization"),
+    targetGroupType: getString(
+      formData,
+      "targetGroupType",
+    ) as ParticipantTargetGroup,
+    status: getString(formData, "status") as ParticipantStatus,
+    personallyInvited: formData.get("personallyInvited") === "on",
+    registered: formData.get("registered") === "on",
+    attended: formData.get("attended") === "on",
+    noShowRisk: getString(formData, "noShowRisk") as ParticipantRating,
+    interestTopic: getString(formData, "interestTopic"),
+    matchmakingPotential: getString(
+      formData,
+      "matchmakingPotential",
+    ) as ParticipantRating,
+    followUpNeeded: formData.get("followUpNeeded") === "on",
+    followUpStatus: getString(formData, "followUpStatus") as FollowUpStatus,
   };
 }
 

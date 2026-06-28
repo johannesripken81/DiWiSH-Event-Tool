@@ -11,6 +11,7 @@ import {
   formatEventFormTime,
   type EventFormState,
 } from "@/modules/events/create-event";
+import { getCachedUserOptions } from "@/modules/settings/reference-data";
 
 import { EventForm } from "../../new/event-form";
 import { deleteEventAction } from "../../new/actions";
@@ -118,18 +119,12 @@ export default async function EditEventPage({
   }
 
   const db = getDb();
-  const event = await db.event.findUnique({
-    where: { id },
-  });
-  const users = await db.user.findMany({
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-    },
-    orderBy: { name: "asc" },
-  });
+  const [event, users] = await Promise.all([
+    db.event.findUnique({
+      where: { id },
+    }),
+    getCachedUserOptions(),
+  ]);
 
   if (!event) {
     notFound();

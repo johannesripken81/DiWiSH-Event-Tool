@@ -10,10 +10,10 @@ import {
   deleteCurrentLoginSession,
 } from "@/lib/auth";
 import {
-  checkLoginRateLimit,
-  clearLoginRateLimit,
-  createLoginRateLimitKey,
-  recordFailedLogin,
+  checkLoginRateLimits,
+  clearLoginRateLimitBuckets,
+  createLoginRateLimitBuckets,
+  recordFailedLoginForBuckets,
 } from "@/lib/login-rate-limit";
 
 function getString(formData: FormData, name: string) {
@@ -60,11 +60,11 @@ export async function loginAction(formData: FormData) {
   const identifier = getString(formData, "identifier");
   const password = getString(formData, "password");
   const returnTo = getSafeReturnTo(formData);
-  const rateLimitKey = createLoginRateLimitKey(
+  const rateLimitBuckets = createLoginRateLimitBuckets(
     identifier,
     await getClientIpAddress(),
   );
-  const rateLimit = checkLoginRateLimit(rateLimitKey);
+  const rateLimit = checkLoginRateLimits(rateLimitBuckets);
 
   if (!rateLimit.allowed) {
     redirect(getLoginRedirect("rate-limit", returnTo));
@@ -73,11 +73,11 @@ export async function loginAction(formData: FormData) {
   const user = await authenticateUser(identifier, password);
 
   if (!user) {
-    recordFailedLogin(rateLimitKey);
+    recordFailedLoginForBuckets(rateLimitBuckets);
     redirect(getLoginRedirect("invalid", returnTo));
   }
 
-  clearLoginRateLimit(rateLimitKey);
+  clearLoginRateLimitBuckets(rateLimitBuckets);
   await createLoginSession(user.id);
   revalidatePath("/", "layout");
   redirect(returnTo);

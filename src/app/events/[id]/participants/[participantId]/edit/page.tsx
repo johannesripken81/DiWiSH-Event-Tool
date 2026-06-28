@@ -41,8 +41,19 @@ export default async function EditParticipantPage({
     participantId: participant.id,
     firstName: name.firstName,
     lastName: name.lastName,
+    role: participant.role ?? "",
     email: participant.email,
     organization: participant.organization ?? "",
+    targetGroupType: participant.targetGroupType,
+    status: participant.status,
+    personallyInvited: participant.personallyInvited,
+    registered: participant.registered,
+    attended: participant.attended,
+    noShowRisk: participant.noShowRisk,
+    interestTopic: participant.interestTopic ?? "",
+    matchmakingPotential: participant.matchmakingPotential,
+    followUpNeeded: participant.followUpNeeded,
+    followUpStatus: participant.followUpStatus,
   };
 
   return (

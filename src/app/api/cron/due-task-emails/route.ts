@@ -1,21 +1,12 @@
 import { NextResponse } from "next/server";
 
+import { isCronRequestAuthorized } from "@/lib/cron-auth";
 import { sendDueTodayTaskEmails } from "@/modules/notifications/due-task-emails";
 
 export const dynamic = "force-dynamic";
 
-function isAuthorized(request: Request) {
-  const secret = process.env.CRON_SECRET?.trim();
-
-  if (!secret) {
-    return process.env.NODE_ENV !== "production";
-  }
-
-  return request.headers.get("authorization") === `Bearer ${secret}`;
-}
-
 export async function GET(request: Request) {
-  if (!isAuthorized(request)) {
+  if (!isCronRequestAuthorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

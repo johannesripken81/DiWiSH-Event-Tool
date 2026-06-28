@@ -83,6 +83,36 @@ function completionArea({
   };
 }
 
+function completionAreaFromCounts({
+  key,
+  label,
+  maxPoints,
+  remaining,
+  total,
+}: {
+  key: ReadinessArea["key"];
+  label: string;
+  maxPoints: number;
+  remaining: number;
+  total: number;
+}): ReadinessArea {
+  const complete = total > 0 && remaining === 0;
+
+  return {
+    key,
+    label,
+    maxPoints,
+    awardedPoints: complete ? maxPoints : 0,
+    complete,
+    explanation:
+      total === 0
+        ? "Keine relevanten Aufgaben angelegt."
+        : complete
+          ? "Alle relevanten Aufgaben sind erledigt."
+          : `${remaining} von ${total} relevanten Aufgaben sind noch nicht erledigt.`,
+  };
+}
+
 function normalizeTitle(title: string) {
   return title
     .normalize("NFD")
@@ -226,6 +256,114 @@ export function calculateReadinessScore(
     operationsArea,
     onsiteRolesArea,
     participantsArea,
+    followUpArea,
+  ];
+  const score = areas.reduce((total, area) => total + area.awardedPoints, 0);
+
+  return {
+    score,
+    level: getReadinessLevel(score),
+    areas,
+    missingAreas: areas.filter((area) => !area.complete),
+  };
+}
+
+export type ReadinessStats = {
+  communicationRemaining: number;
+  communicationTotal: number;
+  conceptRemaining: number;
+  conceptTotal: number;
+  followUpTotal: number;
+  followUpUnprepared: number;
+  operationsRemaining: number;
+  operationsTotal: number;
+  onsiteRolesRemaining: number;
+  onsiteRolesTotal: number;
+  participantsRemaining: number;
+  participantsTotal: number;
+};
+
+export function calculateReadinessScoreFromStats(
+  event: ReadinessEvent,
+  stats: ReadinessStats,
+) {
+  const missingSetupFields = [
+    ["Titel", event.title],
+    ["Eventdatum", event.eventDate],
+    ["Format", event.format],
+    ["Location", event.location],
+    ["Ziele, Nutzenversprechen, gewÃ¼nschtes Ergebnis", event.goal],
+    ["Zielgruppe", event.targetAudience],
+    ["Event Lead", event.eventLeadId],
+    ["Kommunikationsverantwortung", event.communicationOwnerId],
+  ].flatMap(([label, value]) =>
+    value instanceof Date || (typeof value === "string" && hasValue(value))
+      ? []
+      : [label as string],
+  );
+  const setupComplete = missingSetupFields.length === 0;
+  const setupArea: ReadinessArea = {
+    key: "setup",
+    label: "Event-Setup vollstÃ¤ndig",
+    maxPoints: 20,
+    awardedPoints: setupComplete ? 20 : 0,
+    complete: setupComplete,
+    explanation: setupComplete
+      ? "Alle MVP-Pflichtangaben sind hinterlegt."
+      : `Es fehlen: ${missingSetupFields.join(", ")}.`,
+  };
+  const followUpComplete =
+    stats.followUpTotal > 0 && stats.followUpUnprepared === 0;
+  const followUpArea: ReadinessArea = {
+    key: "followUp",
+    label: "Feedback und Nachbereitung vorbereitet",
+    maxPoints: 10,
+    awardedPoints: followUpComplete ? 10 : 0,
+    complete: followUpComplete,
+    explanation:
+      stats.followUpTotal === 0
+        ? "Keine Aufgaben fÃ¼r Feedback oder Nachbereitung angelegt."
+        : followUpComplete
+          ? "Verantwortlichkeiten und FÃ¤lligkeiten sind hinterlegt."
+          : `${stats.followUpUnprepared} von ${stats.followUpTotal} Aufgaben fehlen Verantwortlichkeit oder FÃ¤lligkeit.`,
+  };
+  const areas = [
+    setupArea,
+    completionAreaFromCounts({
+      key: "concept",
+      label: "Kritische Konzeptaufgaben",
+      maxPoints: 15,
+      remaining: stats.conceptRemaining,
+      total: stats.conceptTotal,
+    }),
+    completionAreaFromCounts({
+      key: "communication",
+      label: "Kommunikation bereit und freigegeben",
+      maxPoints: 15,
+      remaining: stats.communicationRemaining,
+      total: stats.communicationTotal,
+    }),
+    completionAreaFromCounts({
+      key: "operations",
+      label: "Location, Catering und Technik geklÃ¤rt",
+      maxPoints: 20,
+      remaining: stats.operationsRemaining,
+      total: stats.operationsTotal,
+    }),
+    completionAreaFromCounts({
+      key: "onsiteRoles",
+      label: "Vor-Ort-Rollen verteilt",
+      maxPoints: 10,
+      remaining: stats.onsiteRolesRemaining,
+      total: stats.onsiteRolesTotal,
+    }),
+    completionAreaFromCounts({
+      key: "participants",
+      label: "Teilnehmermanagement gepflegt",
+      maxPoints: 10,
+      remaining: stats.participantsRemaining,
+      total: stats.participantsTotal,
+    }),
     followUpArea,
   ];
   const score = areas.reduce((total, area) => total + area.awardedPoints, 0);

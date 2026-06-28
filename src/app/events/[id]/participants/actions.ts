@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { FollowUpStatus, ParticipantStatus } from "@/generated/prisma/enums";
 import { getCurrentUser } from "@/lib/current-user";
 import { getDb } from "@/lib/db";
 import { assertPermission, hasPermission, Permission } from "@/lib/permissions";
@@ -82,7 +83,18 @@ function getParticipantData(
   return {
     name: combineParticipantName(input.firstName, input.lastName),
     organization: optionalParticipantValue(input.organization),
+    role: optionalParticipantValue(input.role),
     email: input.email.toLowerCase(),
+    targetGroupType: input.targetGroupType,
+    status: input.status,
+    personallyInvited: input.personallyInvited,
+    registered: input.registered,
+    attended: input.attended,
+    noShowRisk: input.noShowRisk,
+    interestTopic: optionalParticipantValue(input.interestTopic),
+    matchmakingPotential: input.matchmakingPotential,
+    followUpNeeded: input.followUpNeeded,
+    followUpStatus: input.followUpStatus,
   };
 }
 
@@ -93,6 +105,13 @@ function getParticipantAuditValue(
     name: participant.name,
     email: participant.email,
     organization: participant.organization,
+    role: participant.role,
+    status: participant.status,
+    targetGroupType: participant.targetGroupType,
+    registered: participant.registered,
+    attended: participant.attended,
+    followUpNeeded: participant.followUpNeeded,
+    followUpStatus: participant.followUpStatus,
   };
 }
 
@@ -362,6 +381,109 @@ export async function importParticipantsCsvAction(formData: FormData) {
   redirect(
     `/events/${eventId}/participants?imported=${created}&updated=${updated}&skipped=${skipped}`,
   );
+}
+
+export async function updateParticipantQuickAction(formData: FormData) {
+  const eventId = formData.get("eventId");
+  const participantId = formData.get("participantId");
+  const action = formData.get("action");
+
+  if (
+    typeof eventId !== "string" ||
+    !eventId ||
+    typeof participantId !== "string" ||
+    !participantId ||
+    typeof action !== "string"
+  ) {
+    return;
+  }
+
+  const currentUser = await getCurrentUser();
+  assertPermission(currentUser, Permission.MANAGE_EVENT_OPERATIONS);
+
+  const db = getDb();
+  const participant = await db.eventParticipant.findFirst({
+    where: {
+      id: participantId,
+      eventId,
+    },
+    select: {
+      id: true,
+      name: true,
+      status: true,
+      registered: true,
+      attended: true,
+      followUpNeeded: true,
+      followUpStatus: true,
+    },
+  });
+
+  if (!participant) {
+    return;
+  }
+
+  const data: {
+    status?: ParticipantStatus;
+    registered?: boolean;
+    attended?: boolean;
+    followUpNeeded?: boolean;
+    followUpStatus?: FollowUpStatus;
+  } = {};
+
+  if (action === "markRegistered") {
+    data.registered = true;
+    if (
+      participant.status === ParticipantStatus.IDENTIFIED ||
+      participant.status === ParticipantStatus.INVITED
+    ) {
+      data.status = ParticipantStatus.REGISTERED;
+    }
+  } else if (action === "markAttended") {
+    data.registered = true;
+    data.attended = true;
+    if (participant.status !== ParticipantStatus.CANCELLED) {
+      data.status = ParticipantStatus.CONFIRMED;
+    }
+  } else if (action === "markFollowUpNeeded") {
+    data.followUpNeeded = true;
+    if (participant.followUpStatus === FollowUpStatus.NOT_REQUIRED) {
+      data.followUpStatus = FollowUpStatus.OPEN;
+    }
+  } else if (action === "clearFollowUp") {
+    data.followUpNeeded = false;
+    data.followUpStatus = FollowUpStatus.NOT_REQUIRED;
+  } else {
+    return;
+  }
+
+  const newValue = Object.fromEntries(
+    Object.entries(data).filter(([, value]) => value !== undefined),
+  );
+
+  await db.$transaction([
+    db.eventParticipant.update({
+      where: { id: participant.id },
+      data,
+    }),
+    db.auditLog.create({
+      data: {
+        userId: currentUser.id,
+        entityType: "EventParticipant",
+        entityId: participant.id,
+        action: "QUICK_UPDATED",
+        oldValue: {
+          status: participant.status,
+          registered: participant.registered,
+          attended: participant.attended,
+          followUpNeeded: participant.followUpNeeded,
+          followUpStatus: participant.followUpStatus,
+        },
+        newValue,
+      },
+    }),
+  ]);
+
+  revalidateParticipantViews(eventId);
 }
 
 export async function deleteParticipantAction(formData: FormData) {

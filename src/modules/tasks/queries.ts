@@ -1,5 +1,6 @@
 import {
   EventPhase,
+  FollowUpStatus,
   Prisma,
   TaskPriority,
   TaskStatus,
@@ -7,9 +8,15 @@ import {
 import { requireEventReadAccess } from "@/lib/current-user";
 import { getDb } from "@/lib/db";
 import { CLOSED_TASK_STATUSES, getTodayUtc } from "@/modules/events/metrics";
-import { compareTasksByDueDate } from "@/modules/events/presentation";
+import { getCachedUserOptions } from "@/modules/settings/reference-data";
 
 export type TaskDueFilter = "all" | "overdue" | "next7";
+export type TaskOverviewView =
+  | "all"
+  | "mine"
+  | "overdue"
+  | "readiness"
+  | "followUp";
 export type TaskReadinessAreaFilter =
   | "concept"
   | "communication"
@@ -28,6 +35,8 @@ export type EventTaskFilters = {
   readinessArea?: TaskReadinessAreaFilter;
 };
 
+export const taskPlanningPageSize = 50;
+
 const taskReadinessAreaLabels: Record<TaskReadinessAreaFilter, string> = {
   concept: "Kritische Konzeptaufgaben",
   communication: "Kommunikation bereit und freigegeben",
@@ -36,6 +45,22 @@ const taskReadinessAreaLabels: Record<TaskReadinessAreaFilter, string> = {
   participants: "Teilnehmermanagement gepflegt",
   followUp: "Feedback und Nachbereitung vorbereitet",
 };
+
+type TaskOverviewEventRow = {
+  id: string;
+  title: string;
+  eventDate: Date | string;
+  totalTasks: number;
+  completedTasks: number;
+  openTasks: number;
+  overdueTasks: number;
+  criticalOpenTasks: number;
+  followUpOpenItems: number;
+};
+
+function getProgress(completedTasks: number, totalTasks: number) {
+  return totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
+}
 
 function addDays(date: Date, days: number) {
   const result = new Date(date);
@@ -83,13 +108,77 @@ function getReadinessAreaFilter(
   }
 }
 
+function getTaskOverviewViewFilter(
+  view: TaskOverviewView,
+  today: Date,
+  currentUserId?: string,
+) {
+  const openStatusFilter = Prisma.sql`NOT IN (${Prisma.join([
+    ...CLOSED_TASK_STATUSES,
+  ])})`;
+
+  switch (view) {
+    case "mine":
+      return currentUserId
+        ? Prisma.sql`EXISTS (
+            SELECT 1
+            FROM "EventTask" tv
+            WHERE tv."eventId" = e.id
+              AND tv."responsibleUserId" = ${currentUserId}
+              AND tv.status::text ${openStatusFilter}
+          )`
+        : Prisma.sql`false`;
+    case "overdue":
+      return Prisma.sql`EXISTS (
+        SELECT 1
+        FROM "EventTask" tv
+        WHERE tv."eventId" = e.id
+          AND tv.status::text ${openStatusFilter}
+          AND tv."dueDate" IS NOT NULL
+          AND tv."dueDate" < ${today}
+      )`;
+    case "readiness":
+      return Prisma.sql`EXISTS (
+        SELECT 1
+        FROM "EventTask" tv
+        WHERE tv."eventId" = e.id
+          AND tv.status::text ${openStatusFilter}
+          AND tv."isCritical" = true
+      )`;
+    case "followUp":
+      return Prisma.sql`(
+        EXISTS (
+          SELECT 1
+          FROM "EventTask" tv
+          WHERE tv."eventId" = e.id
+            AND tv.status::text ${openStatusFilter}
+            AND tv.phase::text IN (${Prisma.join([
+              EventPhase.FOLLOW_UP,
+              EventPhase.EVALUATION,
+            ])})
+        )
+        OR EXISTS (
+          SELECT 1
+          FROM "EventParticipant" pv
+          WHERE pv."eventId" = e.id
+            AND pv."followUpNeeded" = true
+            AND pv."followUpStatus"::text <> ${FollowUpStatus.COMPLETED}
+        )
+      )`;
+    case "all":
+      return null;
+  }
+}
+
 export async function getEventTaskPlanning(
   eventId: string,
   filters: EventTaskFilters,
+  page = 1,
 ) {
   await requireEventReadAccess();
   const db = getDb();
   const today = getTodayUtc();
+  const requestedPage = Math.max(1, page);
   const where: Prisma.EventTaskWhereInput = {
     eventId,
     status: filters.status,
@@ -107,7 +196,7 @@ export async function getEventTaskPlanning(
     where.status = { notIn: [...CLOSED_TASK_STATUSES] };
   }
 
-  const [event, tasks, users, totalTasks] = await Promise.all([
+  const [event, users, totalTasks, filteredTasks] = await Promise.all([
     db.event.findUnique({
       where: { id: eventId },
       select: {
@@ -116,35 +205,114 @@ export async function getEventTaskPlanning(
         eventDate: true,
       },
     }),
-    db.eventTask.findMany({
-      where,
-      include: {
-        responsibleUser: {
-          select: { id: true, name: true },
-        },
-        reviewerUser: {
-          select: { id: true, name: true },
-        },
-      },
-    }),
-    db.user.findMany({
-      select: {
-        id: true,
-        name: true,
-        role: true,
-      },
-      orderBy: { name: "asc" },
-    }),
+    getCachedUserOptions(),
     db.eventTask.count({ where: { eventId } }),
+    db.eventTask.count({ where }),
   ]);
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredTasks / taskPlanningPageSize),
+  );
+  const currentPage = Math.min(requestedPage, totalPages);
+  const tasks = await db.eventTask.findMany({
+    where,
+    include: {
+      responsibleUser: {
+        select: { id: true, name: true },
+      },
+      reviewerUser: {
+        select: { id: true, name: true },
+      },
+    },
+    orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }, { title: "asc" }],
+    skip: (currentPage - 1) * taskPlanningPageSize,
+    take: taskPlanningPageSize,
+  });
 
   return {
     event,
-    tasks: tasks.sort(compareTasksByDueDate),
+    tasks,
     users,
+    filteredTasks,
     totalTasks,
     today,
+    pagination: {
+      currentPage,
+      pageSize: taskPlanningPageSize,
+      totalItems: filteredTasks,
+      totalPages,
+    },
   };
+}
+
+export async function getTaskOverviewEvents(
+  view: TaskOverviewView = "all",
+  currentUserId?: string,
+) {
+  await requireEventReadAccess();
+  const db = getDb();
+  const today = getTodayUtc();
+  const openStatusFilter = Prisma.sql`NOT IN (${Prisma.join([
+    ...CLOSED_TASK_STATUSES,
+  ])})`;
+  const viewFilter = getTaskOverviewViewFilter(view, today, currentUserId);
+  const whereSql = viewFilter
+    ? Prisma.sql`WHERE ${viewFilter}`
+    : Prisma.empty;
+  const rows = await db.$queryRaw<TaskOverviewEventRow[]>(Prisma.sql`
+    SELECT
+      e.id,
+      e.title,
+      e."eventDate",
+      COUNT(t.id) FILTER (WHERE t.status::text <> ${TaskStatus.CANCELLED})::int AS "totalTasks",
+      COUNT(t.id) FILTER (WHERE t.status::text = ${TaskStatus.COMPLETED})::int AS "completedTasks",
+      COUNT(t.id) FILTER (WHERE t.status::text ${openStatusFilter})::int AS "openTasks",
+      COUNT(t.id) FILTER (
+        WHERE t.status::text ${openStatusFilter}
+          AND t."dueDate" IS NOT NULL
+          AND t."dueDate" < ${today}
+      )::int AS "overdueTasks",
+      COUNT(t.id) FILTER (
+        WHERE t.status::text ${openStatusFilter}
+          AND t."isCritical" = true
+      )::int AS "criticalOpenTasks",
+      (
+        SELECT COUNT(*)::int
+        FROM "EventTask" ft
+        WHERE ft."eventId" = e.id
+          AND ft.status::text ${openStatusFilter}
+          AND ft.phase::text IN (${Prisma.join([
+            EventPhase.FOLLOW_UP,
+            EventPhase.EVALUATION,
+          ])})
+      ) + (
+        SELECT COUNT(*)::int
+        FROM "EventParticipant" fp
+        WHERE fp."eventId" = e.id
+          AND fp."followUpNeeded" = true
+          AND fp."followUpStatus"::text <> ${FollowUpStatus.COMPLETED}
+      ) AS "followUpOpenItems"
+    FROM "Event" e
+    LEFT JOIN "EventTask" t ON t."eventId" = e.id
+    ${whereSql}
+    GROUP BY e.id
+    ORDER BY e."eventDate" ASC, e.title ASC
+  `);
+
+  return rows.map((event) => ({
+    id: event.id,
+    title: event.title,
+    eventDate: new Date(event.eventDate),
+    metrics: {
+      totalTasks: event.totalTasks,
+      completedTasks: event.completedTasks,
+      openTasks: event.openTasks,
+      overdueTasks: event.overdueTasks,
+      criticalOpenTasks: event.criticalOpenTasks,
+      followUpOpenItems: event.followUpOpenItems,
+      progress: getProgress(event.completedTasks, event.totalTasks),
+    },
+  }));
 }
 
 export async function getEventTaskEditorData(eventId: string, taskId?: string) {
@@ -160,14 +328,7 @@ export async function getEventTaskEditorData(eventId: string, taskId?: string) {
           where: { id: taskId, eventId },
         })
       : Promise.resolve(null),
-    db.user.findMany({
-      select: {
-        id: true,
-        name: true,
-        role: true,
-      },
-      orderBy: { name: "asc" },
-    }),
+    getCachedUserOptions(),
   ]);
 
   return { event, task, users };
@@ -197,6 +358,18 @@ export function isTaskDueFilter(
   value: string | undefined,
 ): value is TaskDueFilter {
   return value === "all" || value === "overdue" || value === "next7";
+}
+
+export function isTaskOverviewView(
+  value: string | undefined,
+): value is TaskOverviewView {
+  return (
+    value === "all" ||
+    value === "mine" ||
+    value === "overdue" ||
+    value === "readiness" ||
+    value === "followUp"
+  );
 }
 
 export function isTaskReadinessAreaFilter(

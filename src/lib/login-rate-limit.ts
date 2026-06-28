@@ -1,10 +1,16 @@
 const windowMs = 15 * 60 * 1000;
-const maxFailedAttempts = 5;
+const maxFailedAttemptsPerIdentity = 5;
+const maxFailedAttemptsPerIp = 25;
 
 type LoginAttempt = {
   count: number;
   firstAttemptAt: number;
   blockedUntil: number | null;
+};
+
+export type LoginRateLimitBucket = {
+  key: string;
+  maxFailedAttempts: number;
 };
 
 const globalForLoginRateLimit = globalThis as unknown as {
@@ -39,11 +45,34 @@ export function createLoginRateLimitKey(identifier: string, ipAddress: string) {
   return `${ipAddress.trim() || "unknown"}:${identifier.trim().toLowerCase()}`;
 }
 
-export function checkLoginRateLimit(key: string) {
+export function createLoginRateLimitBuckets(
+  identifier: string,
+  ipAddress: string,
+): LoginRateLimitBucket[] {
+  const normalizedIpAddress = ipAddress.trim() || "unknown";
+  const normalizedIdentifier = identifier.trim().toLowerCase() || "unknown";
+
+  return [
+    {
+      key: `identity:${normalizedIdentifier}`,
+      maxFailedAttempts: maxFailedAttemptsPerIdentity,
+    },
+    {
+      key: `ip:${normalizedIpAddress}`,
+      maxFailedAttempts: maxFailedAttemptsPerIp,
+    },
+    {
+      key: `pair:${createLoginRateLimitKey(identifier, ipAddress)}`,
+      maxFailedAttempts: maxFailedAttemptsPerIdentity,
+    },
+  ];
+}
+
+export function checkLoginRateLimit(bucket: LoginRateLimitBucket) {
   const now = getNow();
   pruneExpiredAttempts(now);
 
-  const attempt = getAttempts().get(key);
+  const attempt = getAttempts().get(bucket.key);
 
   if (attempt?.blockedUntil && attempt.blockedUntil > now) {
     return {
@@ -55,10 +84,31 @@ export function checkLoginRateLimit(key: string) {
   return { allowed: true, retryAfterSeconds: 0 };
 }
 
-export function recordFailedLogin(key: string) {
+export function checkLoginRateLimits(buckets: LoginRateLimitBucket[]) {
+  return buckets.reduce(
+    (result, bucket) => {
+      const bucketResult = checkLoginRateLimit(bucket);
+
+      if (bucketResult.allowed) {
+        return result;
+      }
+
+      return {
+        allowed: false,
+        retryAfterSeconds: Math.max(
+          result.retryAfterSeconds,
+          bucketResult.retryAfterSeconds,
+        ),
+      };
+    },
+    { allowed: true, retryAfterSeconds: 0 },
+  );
+}
+
+export function recordFailedLogin(bucket: LoginRateLimitBucket) {
   const now = getNow();
   const attempts = getAttempts();
-  const existing = attempts.get(key);
+  const existing = attempts.get(bucket.key);
   const attempt =
     existing && existing.firstAttemptAt + windowMs > now
       ? existing
@@ -66,13 +116,25 @@ export function recordFailedLogin(key: string) {
 
   attempt.count += 1;
 
-  if (attempt.count >= maxFailedAttempts) {
+  if (attempt.count >= bucket.maxFailedAttempts) {
     attempt.blockedUntil = now + windowMs;
   }
 
-  attempts.set(key, attempt);
+  attempts.set(bucket.key, attempt);
 }
 
-export function clearLoginRateLimit(key: string) {
-  getAttempts().delete(key);
+export function recordFailedLoginForBuckets(buckets: LoginRateLimitBucket[]) {
+  for (const bucket of buckets) {
+    recordFailedLogin(bucket);
+  }
+}
+
+export function clearLoginRateLimit(bucket: LoginRateLimitBucket) {
+  getAttempts().delete(bucket.key);
+}
+
+export function clearLoginRateLimitBuckets(buckets: LoginRateLimitBucket[]) {
+  for (const bucket of buckets) {
+    clearLoginRateLimit(bucket);
+  }
 }

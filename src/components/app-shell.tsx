@@ -1,10 +1,8 @@
-"use client";
-
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 
 import { logoutAction } from "@/app/login/actions";
-import { Icon, type IconName } from "@/components/icons";
+import { ActiveNavigationLink } from "@/components/active-navigation-link";
+import type { IconName } from "@/components/icons";
 
 const navigation: Array<{
   href: string;
@@ -52,56 +50,15 @@ function getInitials(name: string) {
   );
 }
 
-function NavigationLink({
-  href,
-  label,
-  icon,
-  active,
-  mobile = false,
-}: {
-  href: string;
-  label: string;
-  icon: IconName;
-  active: boolean;
-  mobile?: boolean;
-}) {
-  return (
-    <Link
-      aria-current={active ? "page" : undefined}
-      className={
-        mobile
-          ? `flex min-w-max items-center gap-2 border-b-2 px-3 py-3 text-sm font-semibold transition ${
-              active
-                ? "border-accent-500 text-brand-950"
-                : "hover:text-brand-800 border-transparent text-slate-600"
-            }`
-          : `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
-              active
-                ? "bg-white/12 text-white shadow-sm"
-                : "text-brand-100 hover:bg-white/7 hover:text-white"
-            }`
-      }
-      href={href}
-    >
-      <Icon className="size-5 shrink-0" name={icon} />
-      {label}
-    </Link>
-  );
-}
-
 export function AppShell({
   children,
   currentUser,
+  isLoginPage,
 }: {
   children: React.ReactNode;
   currentUser: { email: string; name: string; role: string } | null;
+  isLoginPage: boolean;
 }) {
-  const pathname = usePathname();
-  const isLoginPage = pathname.startsWith("/login");
-
-  const isActive = (href: string) =>
-    href === "/" ? pathname === "/" : pathname.startsWith(href);
-
   if (isLoginPage) {
     return <main className="bg-surface min-h-screen">{children}</main>;
   }
@@ -115,11 +72,7 @@ export function AppShell({
 
         <nav aria-label="Hauptnavigation" className="mt-9 space-y-1">
           {navigation.map((item) => (
-            <NavigationLink
-              active={isActive(item.href)}
-              key={item.href}
-              {...item}
-            />
+            <ActiveNavigationLink key={item.href} {...item} />
           ))}
         </nav>
 
@@ -170,12 +123,7 @@ export function AppShell({
             className="flex overflow-x-auto px-1"
           >
             {navigation.map((item) => (
-              <NavigationLink
-                active={isActive(item.href)}
-                key={item.href}
-                mobile
-                {...item}
-              />
+              <ActiveNavigationLink key={item.href} mobile {...item} />
             ))}
           </nav>
           {currentUser ? (
