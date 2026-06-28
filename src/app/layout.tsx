@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 
 import { AppShell } from "@/components/app-shell";
+import { WebVitalsReporter } from "@/components/web-vitals-reporter";
 import { getOptionalCurrentUser } from "@/lib/current-user";
 
 import "./globals.css";
@@ -19,11 +21,16 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const currentUser = await getOptionalCurrentUser();
+  const [currentUser, requestHeaders] = await Promise.all([
+    getOptionalCurrentUser(),
+    headers(),
+  ]);
+  const pathname = requestHeaders.get("x-pathname") ?? "";
 
   return (
     <html lang="de">
       <body>
+        <WebVitalsReporter />
         <AppShell
           currentUser={
             currentUser
@@ -34,6 +41,7 @@ export default async function RootLayout({
                 }
               : null
           }
+          isLoginPage={pathname.startsWith("/login")}
         >
           {children}
         </AppShell>

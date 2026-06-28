@@ -9,6 +9,7 @@ import {
   StatusBadge,
 } from "@/components/ui";
 import { PaginationControls } from "@/components/pagination";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
 import { TaskStatus } from "@/generated/prisma/client";
 import { getCurrentUser } from "@/lib/current-user";
 import { hasPermission, Permission } from "@/lib/permissions";
@@ -122,12 +123,12 @@ function StatusAction({
       <input name="eventId" type="hidden" value={eventId} />
       <input name="taskId" type="hidden" value={taskId} />
       <input name="status" type="hidden" value={status} />
-      <button
+      <PendingSubmitButton
         className={`inline-flex min-h-8 items-center rounded-md px-2.5 text-xs font-semibold transition ${className}`}
-        type="submit"
+        pendingLabel="Ändert..."
       >
         {children}
-      </button>
+      </PendingSubmitButton>
     </form>
   );
 }
@@ -184,15 +185,15 @@ function TaskDoneToggle({
       <input name="eventId" type="hidden" value={eventId} />
       <input name="taskId" type="hidden" value={task.id} />
       <input name="status" type="hidden" value={nextStatus} />
-      <button
-        aria-label={`${label}: ${task.title}`}
-        aria-pressed={isCompleted}
+      <PendingSubmitButton
+        ariaLabel={`${label}: ${task.title}`}
+        ariaPressed={isCompleted}
         className={checkboxClass}
+        pendingLabel="…"
         title={label}
-        type="submit"
       >
         {isCompleted ? "✓" : ""}
-      </button>
+      </PendingSubmitButton>
     </form>
   );
 }
@@ -221,7 +222,9 @@ function TaskPlanningTable({
             <th className="px-4 py-3">Priorität</th>
             <th className="px-4 py-3">Fällig am</th>
             <th className="px-4 py-3">Kritisch</th>
-            <th className="px-5 py-3 text-right">Aktionen</th>
+            <th className="sticky right-0 z-10 bg-slate-50 px-5 py-3 text-right">
+              Aktionen
+            </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
@@ -254,6 +257,7 @@ function TaskPlanningTable({
                         <Link
                           className="text-brand-950 hover:text-brand-700 font-bold"
                           href={`/events/${eventId}/tasks/${task.id}/edit`}
+                          prefetch={false}
                         >
                           {task.title}
                         </Link>
@@ -304,12 +308,13 @@ function TaskPlanningTable({
                     {task.isCritical ? "Ja" : "Nein"}
                   </span>
                 </td>
-                <td className="px-5 py-4">
+                <td className="sticky right-0 bg-white px-5 py-4 shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.35)]">
                   <div className="flex justify-end gap-2">
                     {canUpdateTask ? (
                       <Link
                         className="inline-flex min-h-8 items-center rounded-md border border-slate-300 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                         href={`/events/${eventId}/tasks/${task.id}/edit`}
+                        prefetch={false}
                       >
                         Details bearbeiten
                       </Link>
@@ -644,7 +649,9 @@ export default async function EventTasksPage({
                   <th className="px-4 py-3">Priorität</th>
                   <th className="px-4 py-3">Fällig am</th>
                   <th className="px-4 py-3">Kritisch</th>
-                  <th className="px-5 py-3 text-right">Aktionen</th>
+                  <th className="sticky right-0 z-10 bg-slate-50 px-5 py-3 text-right">
+                    Aktionen
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -677,6 +684,7 @@ export default async function EventTasksPage({
                               <Link
                                 className="text-brand-950 hover:text-brand-700 font-bold"
                                 href={`/events/${event.id}/tasks/${task.id}/edit`}
+                                prefetch={false}
                               >
                                 {task.title}
                               </Link>
@@ -729,12 +737,13 @@ export default async function EventTasksPage({
                           {task.isCritical ? "Ja" : "Nein"}
                         </span>
                       </td>
-                      <td className="px-5 py-4">
+                      <td className="sticky right-0 bg-white px-5 py-4 shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.35)]">
                         <div className="flex justify-end gap-2">
                           {canUpdateTask ? (
                             <Link
                               className="inline-flex min-h-8 items-center rounded-md border border-slate-300 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                               href={`/events/${event.id}/tasks/${task.id}/edit`}
+                              prefetch={false}
                             >
                               Details bearbeiten
                             </Link>

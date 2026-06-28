@@ -1,13 +1,21 @@
+import { Prisma } from "@/generated/prisma/client";
 import { requireEventReadAccess } from "@/lib/current-user";
 import { getDb } from "@/lib/db";
 
 export const participantListPageSize = 50;
 
+type ParticipantMetricsRow = {
+  attended: number;
+  followUps: number;
+  registered: number;
+  total: number;
+};
+
 export async function getParticipantList(eventId: string, page = 1) {
   await requireEventReadAccess();
   const db = getDb();
   const requestedPage = Math.max(1, page);
-  const [event, total, registered, attended, followUps] = await Promise.all([
+  const [event, metricsRows] = await Promise.all([
     db.event.findUnique({
       where: { id: eventId },
       select: {
@@ -16,11 +24,23 @@ export async function getParticipantList(eventId: string, page = 1) {
         eventDate: true,
       },
     }),
-    db.eventParticipant.count({ where: { eventId } }),
-    db.eventParticipant.count({ where: { eventId, registered: true } }),
-    db.eventParticipant.count({ where: { eventId, attended: true } }),
-    db.eventParticipant.count({ where: { eventId, followUpNeeded: true } }),
+    db.$queryRaw<ParticipantMetricsRow[]>(Prisma.sql`
+      SELECT
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE "registered" = true)::int AS "registered",
+        COUNT(*) FILTER (WHERE "attended" = true)::int AS "attended",
+        COUNT(*) FILTER (WHERE "followUpNeeded" = true)::int AS "followUps"
+      FROM "EventParticipant"
+      WHERE "eventId" = ${eventId}
+    `),
   ]);
+  const metrics = metricsRows[0] ?? {
+    attended: 0,
+    followUps: 0,
+    registered: 0,
+    total: 0,
+  };
+  const total = metrics.total;
   const totalPages = Math.max(1, Math.ceil(total / participantListPageSize));
   const currentPage = Math.min(requestedPage, totalPages);
   const participants = await db.eventParticipant.findMany({
@@ -51,9 +71,9 @@ export async function getParticipantList(eventId: string, page = 1) {
     participants,
     metrics: {
       total,
-      registered,
-      attended,
-      followUps,
+      registered: metrics.registered,
+      attended: metrics.attended,
+      followUps: metrics.followUps,
     },
     pagination: {
       currentPage: Math.min(currentPage, totalPages),

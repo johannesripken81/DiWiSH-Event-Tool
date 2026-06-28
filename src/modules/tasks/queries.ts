@@ -1,5 +1,6 @@
 import {
   EventPhase,
+  FollowUpStatus,
   Prisma,
   TaskPriority,
   TaskStatus,
@@ -10,6 +11,12 @@ import { CLOSED_TASK_STATUSES, getTodayUtc } from "@/modules/events/metrics";
 import { getCachedUserOptions } from "@/modules/settings/reference-data";
 
 export type TaskDueFilter = "all" | "overdue" | "next7";
+export type TaskOverviewView =
+  | "all"
+  | "mine"
+  | "overdue"
+  | "readiness"
+  | "followUp";
 export type TaskReadinessAreaFilter =
   | "concept"
   | "communication"
@@ -48,6 +55,7 @@ type TaskOverviewEventRow = {
   openTasks: number;
   overdueTasks: number;
   criticalOpenTasks: number;
+  followUpOpenItems: number;
 };
 
 function getProgress(completedTasks: number, totalTasks: number) {
@@ -97,6 +105,68 @@ function getReadinessAreaFilter(
       return { phase: { in: [EventPhase.FOLLOW_UP, EventPhase.EVALUATION] } };
     case undefined:
       return undefined;
+  }
+}
+
+function getTaskOverviewViewFilter(
+  view: TaskOverviewView,
+  today: Date,
+  currentUserId?: string,
+) {
+  const openStatusFilter = Prisma.sql`NOT IN (${Prisma.join([
+    ...CLOSED_TASK_STATUSES,
+  ])})`;
+
+  switch (view) {
+    case "mine":
+      return currentUserId
+        ? Prisma.sql`EXISTS (
+            SELECT 1
+            FROM "EventTask" tv
+            WHERE tv."eventId" = e.id
+              AND tv."responsibleUserId" = ${currentUserId}
+              AND tv.status::text ${openStatusFilter}
+          )`
+        : Prisma.sql`false`;
+    case "overdue":
+      return Prisma.sql`EXISTS (
+        SELECT 1
+        FROM "EventTask" tv
+        WHERE tv."eventId" = e.id
+          AND tv.status::text ${openStatusFilter}
+          AND tv."dueDate" IS NOT NULL
+          AND tv."dueDate" < ${today}
+      )`;
+    case "readiness":
+      return Prisma.sql`EXISTS (
+        SELECT 1
+        FROM "EventTask" tv
+        WHERE tv."eventId" = e.id
+          AND tv.status::text ${openStatusFilter}
+          AND tv."isCritical" = true
+      )`;
+    case "followUp":
+      return Prisma.sql`(
+        EXISTS (
+          SELECT 1
+          FROM "EventTask" tv
+          WHERE tv."eventId" = e.id
+            AND tv.status::text ${openStatusFilter}
+            AND tv.phase::text IN (${Prisma.join([
+              EventPhase.FOLLOW_UP,
+              EventPhase.EVALUATION,
+            ])})
+        )
+        OR EXISTS (
+          SELECT 1
+          FROM "EventParticipant" pv
+          WHERE pv."eventId" = e.id
+            AND pv."followUpNeeded" = true
+            AND pv."followUpStatus"::text <> ${FollowUpStatus.COMPLETED}
+        )
+      )`;
+    case "all":
+      return null;
   }
 }
 
@@ -175,13 +245,20 @@ export async function getEventTaskPlanning(
   };
 }
 
-export async function getTaskOverviewEvents() {
+export async function getTaskOverviewEvents(
+  view: TaskOverviewView = "all",
+  currentUserId?: string,
+) {
   await requireEventReadAccess();
   const db = getDb();
   const today = getTodayUtc();
   const openStatusFilter = Prisma.sql`NOT IN (${Prisma.join([
     ...CLOSED_TASK_STATUSES,
   ])})`;
+  const viewFilter = getTaskOverviewViewFilter(view, today, currentUserId);
+  const whereSql = viewFilter
+    ? Prisma.sql`WHERE ${viewFilter}`
+    : Prisma.empty;
   const rows = await db.$queryRaw<TaskOverviewEventRow[]>(Prisma.sql`
     SELECT
       e.id,
@@ -198,9 +275,26 @@ export async function getTaskOverviewEvents() {
       COUNT(t.id) FILTER (
         WHERE t.status::text ${openStatusFilter}
           AND t."isCritical" = true
-      )::int AS "criticalOpenTasks"
+      )::int AS "criticalOpenTasks",
+      (
+        SELECT COUNT(*)::int
+        FROM "EventTask" ft
+        WHERE ft."eventId" = e.id
+          AND ft.status::text ${openStatusFilter}
+          AND ft.phase::text IN (${Prisma.join([
+            EventPhase.FOLLOW_UP,
+            EventPhase.EVALUATION,
+          ])})
+      ) + (
+        SELECT COUNT(*)::int
+        FROM "EventParticipant" fp
+        WHERE fp."eventId" = e.id
+          AND fp."followUpNeeded" = true
+          AND fp."followUpStatus"::text <> ${FollowUpStatus.COMPLETED}
+      ) AS "followUpOpenItems"
     FROM "Event" e
     LEFT JOIN "EventTask" t ON t."eventId" = e.id
+    ${whereSql}
     GROUP BY e.id
     ORDER BY e."eventDate" ASC, e.title ASC
   `);
@@ -215,6 +309,7 @@ export async function getTaskOverviewEvents() {
       openTasks: event.openTasks,
       overdueTasks: event.overdueTasks,
       criticalOpenTasks: event.criticalOpenTasks,
+      followUpOpenItems: event.followUpOpenItems,
       progress: getProgress(event.completedTasks, event.totalTasks),
     },
   }));
@@ -263,6 +358,18 @@ export function isTaskDueFilter(
   value: string | undefined,
 ): value is TaskDueFilter {
   return value === "all" || value === "overdue" || value === "next7";
+}
+
+export function isTaskOverviewView(
+  value: string | undefined,
+): value is TaskOverviewView {
+  return (
+    value === "all" ||
+    value === "mine" ||
+    value === "overdue" ||
+    value === "readiness" ||
+    value === "followUp"
+  );
 }
 
 export function isTaskReadinessAreaFilter(

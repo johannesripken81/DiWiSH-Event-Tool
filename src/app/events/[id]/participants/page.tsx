@@ -9,6 +9,7 @@ import {
   StatusBadge,
 } from "@/components/ui";
 import { PaginationControls } from "@/components/pagination";
+import { PendingSubmitButton } from "@/components/pending-submit-button";
 import { getCurrentUser } from "@/lib/current-user";
 import { hasPermission, Permission } from "@/lib/permissions";
 import { getParticipantList } from "@/modules/participants/queries";
@@ -53,12 +54,12 @@ function QuickParticipantAction({
       <input name="eventId" type="hidden" value={eventId} />
       <input name="participantId" type="hidden" value={participantId} />
       <input name="action" type="hidden" value={action} />
-      <button
+      <PendingSubmitButton
         className="inline-flex min-h-8 items-center rounded-md border border-slate-300 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-        type="submit"
+        pendingLabel="Speichert..."
       >
         {children}
-      </button>
+      </PendingSubmitButton>
     </form>
   );
 }
@@ -236,7 +237,9 @@ export default async function ParticipantListPage({
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Signale</th>
                   <th className="px-4 py-3">Follow-up</th>
-                  <th className="px-5 py-3 text-right">Aktionen</th>
+                  <th className="sticky right-0 z-10 bg-slate-50 px-5 py-3 text-right">
+                    Aktionen
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -311,12 +314,13 @@ export default async function ParticipantListPage({
                           : "Nicht nötig"}
                       </StatusBadge>
                     </td>
-                    <td className="px-5 py-4">
+                    <td className="sticky right-0 bg-white px-5 py-4 shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.35)]">
                       {canManageParticipants ? (
                         <div className="flex justify-end gap-2">
                           <Link
                             className="inline-flex min-h-8 items-center rounded-md border border-slate-300 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                             href={`/events/${event.id}/participants/${participant.id}/edit`}
+                            prefetch={false}
                           >
                             Bearbeiten
                           </Link>

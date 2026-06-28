@@ -181,6 +181,21 @@ model AppSetting {
   updatedAt DateTime @updatedAt
 }
 
+model WebVitalMetric {
+  id             String   @id @default(cuid())
+  metricId       String
+  name           String
+  path           String
+  value          Float
+  delta          Float
+  rating         String?
+  navigationType String?
+  createdAt      DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([name, path, createdAt])
+}
+
 model Event {
   id                   String      @id @default(cuid())
   title                String
@@ -220,6 +235,7 @@ model Event {
   @@index([format, eventDate])
   @@index([status, eventDate])
   @@index([eventLeadId])
+  @@index([eventLeadId, eventDate])
   @@index([coLeadId])
   @@index([communicationOwnerId])
 }
@@ -247,6 +263,7 @@ model EventParticipant {
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, email])
+  @@index([eventId, name])
   @@index([eventId, targetGroupType])
   @@index([eventId, status])
   @@index([eventId, followUpNeeded, followUpStatus])
@@ -393,6 +410,8 @@ model EventTask {
 
   @@index([eventId, phase])
   @@index([eventId, status])
+  @@index([eventId, dueDate, status])
+  @@index([eventId, responsibleUserId, status])
   @@index([responsibleUserId, status])
   @@index([reviewerUserId])
   @@index([approvedById])

@@ -5,6 +5,11 @@ import { Card, EmptyHint, PageHeader, StatusBadge } from "@/components/ui";
 import { UserRole } from "@/generated/prisma/enums";
 import { getCurrentUser } from "@/lib/current-user";
 import {
+  getWebVitalDashboard,
+  type WebVitalPathSummary,
+  type WebVitalSummary,
+} from "@/modules/analytics/web-vitals";
+import {
   getNotificationSettings,
   getWorkspaceSettings,
 } from "@/modules/settings/queries";
@@ -166,6 +171,127 @@ function CardHeader({
   );
 }
 
+function formatWebVitalValue(name: string, value: number) {
+  if (name === "CLS") {
+    return value.toLocaleString("de-DE", {
+      maximumFractionDigits: 3,
+      minimumFractionDigits: 2,
+    });
+  }
+
+  return `${Math.round(value).toLocaleString("de-DE")} ms`;
+}
+
+function WebVitalMetricTile({ metric }: { metric: WebVitalSummary }) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-xs font-bold tracking-wide text-slate-500 uppercase">
+          {metric.name}
+        </p>
+        <StatusBadge color={metric.poorCount > 0 ? "red" : "green"}>
+          {metric.count}
+        </StatusBadge>
+      </div>
+      <p className="text-brand-950 mt-2 text-xl font-bold">
+        {formatWebVitalValue(metric.name, metric.p75Value)}
+      </p>
+      <p className="mt-1 text-xs text-slate-500">
+        p75 · Ø {formatWebVitalValue(metric.name, metric.averageValue)}
+      </p>
+    </div>
+  );
+}
+
+function WebVitalPathRow({ path }: { path: WebVitalPathSummary }) {
+  return (
+    <tr>
+      <td className="px-4 py-3 font-semibold text-slate-800">{path.name}</td>
+      <td className="max-w-[360px] truncate px-4 py-3 text-slate-600">
+        {path.path}
+      </td>
+      <td className="px-4 py-3 font-semibold text-slate-700">
+        {formatWebVitalValue(path.name, path.p75Value)}
+      </td>
+      <td className="px-4 py-3 text-slate-600">
+        {formatWebVitalValue(path.name, path.maxValue)}
+      </td>
+      <td className="px-4 py-3 text-slate-600">{path.count}</td>
+    </tr>
+  );
+}
+
+function WebVitalsCard({
+  data,
+}: {
+  data: Awaited<ReturnType<typeof getWebVitalDashboard>>;
+}) {
+  const preferredMetrics = ["LCP", "INP", "CLS", "TTFB"];
+  const summaryByName = new Map(
+    data.summary.map((metric) => [metric.name, metric]),
+  );
+  const visibleSummary = [
+    ...preferredMetrics.flatMap((name) => {
+      const metric = summaryByName.get(name);
+      return metric ? [metric] : [];
+    }),
+    ...data.summary.filter((metric) => !preferredMetrics.includes(metric.name)),
+  ];
+
+  return (
+    <Card>
+      <CardHeader
+        description={`Reale Lade- und Interaktionswerte aus den letzten ${data.days} Tagen.`}
+        title="Performance-Messung"
+      />
+      <div className="space-y-4 p-5">
+        {data.totalSamples === 0 ? (
+          <EmptyHint>
+            Noch keine Web-Vitals erfasst. In Produktion werden die Werte nach
+            den ersten Seitenaufrufen hier sichtbar.
+          </EmptyHint>
+        ) : (
+          <>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <SummaryItem
+                label="Messpunkte"
+                value={data.totalSamples.toLocaleString("de-DE")}
+              />
+              {visibleSummary.slice(0, 4).map((metric) => (
+                <WebVitalMetricTile key={metric.name} metric={metric} />
+              ))}
+            </div>
+
+            {data.paths.length > 0 ? (
+              <div className="overflow-x-auto rounded-xl border border-slate-200">
+                <table className="w-full min-w-[760px] text-left text-sm">
+                  <thead className="bg-slate-50 text-xs font-semibold tracking-wide text-slate-500 uppercase">
+                    <tr>
+                      <th className="px-4 py-3">Metrik</th>
+                      <th className="px-4 py-3">Pfad</th>
+                      <th className="px-4 py-3">p75</th>
+                      <th className="px-4 py-3">Max</th>
+                      <th className="px-4 py-3">Samples</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {data.paths.map((path) => (
+                      <WebVitalPathRow
+                        key={`${path.name}-${path.path}`}
+                        path={path}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+          </>
+        )}
+      </div>
+    </Card>
+  );
+}
+
 export default async function SettingsPage({
   searchParams,
 }: {
@@ -173,15 +299,16 @@ export default async function SettingsPage({
 }) {
   const query = await searchParams;
   const currentUser = await getCurrentUser();
-  const [workspaceSettings, notificationSettings, users, templates] =
+  const isAdmin = currentUser.role === UserRole.ADMIN;
+  const [workspaceSettings, notificationSettings, users, templates, webVitals] =
     await Promise.all([
       getWorkspaceSettings(),
       getNotificationSettings(),
       getCachedSettingsUsers(),
       getCachedEventTemplateOptions(),
+      isAdmin ? getWebVitalDashboard() : Promise.resolve(null),
     ]);
   const message = getMessage(query);
-  const isAdmin = currentUser.role === UserRole.ADMIN;
   const emailDeliveryConfigured = Boolean(
     process.env.RESEND_API_KEY?.trim() && process.env.EMAIL_FROM?.trim(),
   );
@@ -313,6 +440,8 @@ export default async function SettingsPage({
             ) : null}
           </div>
         </Card>
+
+        {webVitals ? <WebVitalsCard data={webVitals} /> : null}
 
         <Card>
           <CardHeader
