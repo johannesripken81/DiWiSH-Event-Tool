@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 export function PendingSubmitButton({
@@ -19,33 +18,20 @@ export function PendingSubmitButton({
   title?: string;
 }) {
   const { pending } = useFormStatus();
-  const [optimisticPending, setOptimisticPending] = useState(false);
-  const isPending = pending || optimisticPending;
-
-  useEffect(() => {
-    if (!pending && optimisticPending) {
-      const timeout = window.setTimeout(() => {
-        setOptimisticPending(false);
-      }, 1200);
-
-      return () => window.clearTimeout(timeout);
-    }
-
-    return undefined;
-  }, [optimisticPending, pending]);
+  // Only disable for the real form pending state. Disabling on click can
+  // cancel native form submission before the server action starts.
 
   return (
     <button
       aria-label={ariaLabel}
       aria-pressed={ariaPressed}
-      aria-disabled={isPending}
+      aria-disabled={pending}
       className={`${className} disabled:cursor-wait disabled:opacity-65`}
-      disabled={isPending}
-      onClick={() => setOptimisticPending(true)}
+      disabled={pending}
       title={title}
       type="submit"
     >
-      <span aria-live="polite">{isPending ? pendingLabel : children}</span>
+      <span aria-live="polite">{pending ? pendingLabel : children}</span>
     </button>
   );
 }
