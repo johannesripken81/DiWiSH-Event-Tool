@@ -45,7 +45,8 @@ describe("Template-Aufgabenerzeugung", () => {
       [
         template({
           title: "Einladung versenden",
-          phase: EventPhase.COMMUNICATION,
+          phase: EventPhase.PLANNING,
+          workPackage: "COMMUNICATION",
           defaultResponsibleRole: UserRole.COMMUNICATION,
           priority: TaskPriority.HIGH,
           offsetDays: -45,
@@ -132,7 +133,8 @@ describe("Template-Aufgabenerzeugung", () => {
         {
           title: "Einladung final versenden",
           description: "Aktualisierte Fassung nutzen.",
-          phase: EventPhase.COMMUNICATION,
+          phase: EventPhase.PLANNING,
+          workPackage: "COMMUNICATION",
           responsibleUser: { role: UserRole.COMMUNICATION },
           reviewerUser: { role: UserRole.EVENT_LEAD },
           priority: TaskPriority.HIGH,
@@ -144,10 +146,10 @@ describe("Template-Aufgabenerzeugung", () => {
         {
           title: "Offene Sonderaufgabe",
           description: null,
-          phase: EventPhase.EVENT_DAY,
+          phase: EventPhase.EXECUTION,
           responsibleUser: null,
           reviewerUser: null,
-          priority: TaskPriority.CRITICAL,
+          priority: TaskPriority.HIGH,
           dueDate: null,
           offsetDays: null,
           approvalRequired: false,
@@ -161,7 +163,8 @@ describe("Template-Aufgabenerzeugung", () => {
       {
         title: "Einladung final versenden",
         description: "Aktualisierte Fassung nutzen.",
-        phase: EventPhase.COMMUNICATION,
+        phase: EventPhase.PLANNING,
+        workPackage: "COMMUNICATION",
         defaultResponsibleRole: UserRole.COMMUNICATION,
         defaultReviewerRole: UserRole.EVENT_LEAD,
         priority: TaskPriority.HIGH,
@@ -172,13 +175,14 @@ describe("Template-Aufgabenerzeugung", () => {
       {
         title: "Offene Sonderaufgabe",
         description: null,
-        phase: EventPhase.EVENT_DAY,
+        phase: EventPhase.EXECUTION,
+        workPackage: null,
         defaultResponsibleRole: UserRole.EVENT_LEAD,
         defaultReviewerRole: null,
-        priority: TaskPriority.CRITICAL,
+        priority: TaskPriority.HIGH,
         offsetDays: 0,
         approvalRequired: false,
-        isCritical: true,
+        isCritical: false,
       },
     ]);
   });

@@ -39,7 +39,8 @@ export const notificationLabels = [
   {
     name: "dueTodayEnabled",
     title: "Am Fälligkeitstag",
-    description: "Aufgaben markieren, die heute erledigt werden müssen.",
+    description:
+      "Internen Hinweis erzeugen und tägliche E-Mail-Erinnerung für heute fällige Aufgaben aktivieren, sofern der Versand eingerichtet ist.",
   },
   {
     name: "overdueOneDayEnabled",
@@ -52,6 +53,33 @@ export const notificationLabels = [
     description: "Eskalation an Event Lead oder zuständige Prüfung erzeugen.",
   },
 ] as const;
+
+import {
+  getWorkPackageLabel,
+  workPackageOptions,
+} from "@/modules/tasks/work-packages";
+
+export function WorkPackageSelect({
+  defaultValue,
+}: {
+  defaultValue?: string | null;
+}) {
+  return (
+    <select
+      className={inputClass}
+      name="workPackage"
+      defaultValue={defaultValue ?? ""}
+      aria-label="Arbeitspaket"
+    >
+      <option value="">Kein Arbeitspaket</option>
+      {workPackageOptions.map((value) => (
+        <option key={value} value={value}>
+          {getWorkPackageLabel(value)}
+        </option>
+      ))}
+    </select>
+  );
+}
 
 export function FieldLabel({ children }: { children: React.ReactNode }) {
   return (

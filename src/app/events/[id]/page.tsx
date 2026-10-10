@@ -1,47 +1,29 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
-
-import { Card, EmptyState, StatusBadge } from "@/components/ui";
+import { Card, StatusBadge } from "@/components/ui";
 import { getCurrentUser } from "@/lib/current-user";
 import { hasPermission, Permission } from "@/lib/permissions";
 import { formatNoShowRate } from "@/modules/evaluations/metrics";
-import {
-  getAuditActionLabel,
-  getAuditChanges,
-} from "@/modules/audit/presentation";
-import {
-  getEventCockpitAuditLogs,
-  getEventCockpitOverview,
-  getEventCockpitTaskPreviews,
-} from "@/modules/events/queries";
+import { getEventCockpitOverview } from "@/modules/events/queries";
+import { getEventWorkspaceData } from "@/modules/events/workspace";
 import {
   formatDate,
   formatEventDateTime,
   getPhaseLabel,
   getSafeExternalUrl,
-  getTaskPriorityPresentation,
   getTaskStatusPresentation,
 } from "@/modules/events/presentation";
-
+import { getTaskHref } from "@/modules/tasks/list-state";
 import { createEventTemplateFromEventAction } from "./planning-actions";
 import { RecalculateDueDatesForm } from "./recalculate-due-dates-form";
 
 export const dynamic = "force-dynamic";
-
 type SearchParams = Record<string, string | string[] | undefined>;
 type EventCockpitOverview = NonNullable<
   Awaited<ReturnType<typeof getEventCockpitOverview>>
 >;
-type CockpitAuditLog = Awaited<
-  ReturnType<typeof getEventCockpitAuditLogs>
->[number];
-type CockpitTask = Awaited<
-  ReturnType<typeof getEventCockpitTaskPreviews>
->["nextDeadlines"][number];
 type ReadinessAreaKey =
   EventCockpitOverview["readiness"]["missingAreas"][number]["key"];
-
 function firstValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
@@ -108,114 +90,6 @@ function TemplateSaveMessage({ query }: { query: SearchParams }) {
         </Link>
       ) : null}
     </div>
-  );
-}
-
-function AuditHistory({ logs }: { logs: CockpitAuditLog[] }) {
-  const dateTimeFormatter = new Intl.DateTimeFormat("de-DE", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-
-  if (logs.length === 0) {
-    return (
-      <EmptyState
-        description="Neue wichtige Änderungen an Event und Aufgaben erscheinen automatisch an dieser Stelle."
-        title="Noch keine Änderungen protokolliert"
-      />
-    );
-  }
-
-  return (
-    <ol className="divide-y divide-slate-100">
-      {logs.map((log) => {
-        const changes = getAuditChanges(log.oldValue, log.newValue);
-        const hasOldValue = log.oldValue !== null;
-
-        return (
-          <li className="px-5 py-4" key={log.id}>
-            <div className="flex flex-col justify-between gap-1 sm:flex-row sm:items-start">
-              <div>
-                <p className="font-bold text-slate-800">
-                  {getAuditActionLabel(log.action)}
-                </p>
-                <p className="mt-0.5 text-xs text-slate-500">
-                  {log.entityType === "EventTask" ? "Aufgabe: " : "Event: "}
-                  {log.entityLabel}
-                  {log.user ? ` · ${log.user.name}` : ""}
-                </p>
-              </div>
-              <time
-                className="shrink-0 text-xs font-medium text-slate-500"
-                dateTime={log.createdAt.toISOString()}
-              >
-                {dateTimeFormatter.format(log.createdAt)}
-              </time>
-            </div>
-
-            {changes.length > 0 ? (
-              <dl className="mt-3 grid gap-2 lg:grid-cols-2">
-                {changes.map((change) => (
-                  <div
-                    className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"
-                    key={change.field}
-                  >
-                    <dt className="text-xs font-bold text-slate-500">
-                      {change.label}
-                    </dt>
-                    <dd className="mt-1 text-sm text-slate-700">
-                      {hasOldValue ? (
-                        <>
-                          <span className="text-slate-500 line-through">
-                            {change.oldValue}
-                          </span>
-                          <span className="mx-2 text-slate-400">→</span>
-                        </>
-                      ) : null}
-                      <span className="font-semibold">{change.newValue}</span>
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            ) : null}
-          </li>
-        );
-      })}
-    </ol>
-  );
-}
-
-function MetricCard({
-  label,
-  value,
-  hint,
-  tone = "neutral",
-}: {
-  label: string;
-  value: string | number;
-  hint: string;
-  tone?: "neutral" | "blue" | "red" | "green";
-}) {
-  const tones = {
-    neutral: "bg-slate-50 text-slate-700",
-    blue: "bg-blue-50 text-blue-700",
-    red: "bg-red-50 text-red-700",
-    green: "bg-emerald-50 text-emerald-700",
-  };
-
-  return (
-    <Card className="p-5">
-      <p className="text-sm font-medium text-slate-500">{label}</p>
-      <p
-        className={`mt-3 inline-flex rounded-lg px-3 py-1 text-2xl font-bold ${tones[tone]}`}
-      >
-        {value}
-      </p>
-      <p className="mt-3 text-xs font-medium text-slate-500">{hint}</p>
-    </Card>
   );
 }
 
@@ -316,11 +190,7 @@ function ReadinessCard({
   );
 }
 
-function EvaluationCard({
-  event,
-}: {
-  event: EventCockpitOverview["event"];
-}) {
+function EvaluationCard({ event }: { event: EventCockpitOverview["event"] }) {
   const evaluation = event.evaluation;
 
   if (!evaluation) {
@@ -578,184 +448,42 @@ function SaveTemplateFromEventForm({
   );
 }
 
-function ModuleActionLink({
-  title,
-  description,
-  href,
-}: {
-  title: string;
-  description: string;
-  href: string;
-}) {
-  return (
-    <Link
-      className="group hover:border-brand-300 hover:bg-brand-50 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left transition"
-      href={href}
-    >
-      <span className="text-brand-950 group-hover:text-brand-800 block text-sm font-bold">
-        {title}
-      </span>
-      <span className="mt-1 block text-xs leading-5 text-slate-500">
-        {description}
-      </span>
-    </Link>
-  );
-}
-
-function TaskTable({
-  tasks,
-  emptyTitle,
-  emptyDescription,
-}: {
-  tasks: CockpitTask[];
-  emptyTitle: string;
-  emptyDescription: string;
-}) {
-  if (tasks.length === 0) {
-    return <EmptyState description={emptyDescription} title={emptyTitle} />;
-  }
-
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[720px] text-left text-sm">
-        <thead className="bg-slate-50 text-xs font-semibold tracking-wide text-slate-500 uppercase">
-          <tr>
-            <th className="px-5 py-3">Aufgabe</th>
-            <th className="px-4 py-3">Phase</th>
-            <th className="px-4 py-3">Verantwortlich</th>
-            <th className="px-4 py-3">Priorität</th>
-            <th className="px-4 py-3">Status</th>
-            <th className="px-5 py-3 text-right">Fällig</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {tasks.map((task) => {
-            const priority = getTaskPriorityPresentation(task.priority);
-            const status = getTaskStatusPresentation(task.status);
-
-            return (
-              <tr className="hover:bg-slate-50/80" key={task.id}>
-                <td className="px-5 py-4 font-semibold text-slate-800">
-                  {task.title}
-                </td>
-                <td className="px-4 py-4 text-slate-600">
-                  {getPhaseLabel(task.phase)}
-                </td>
-                <td className="px-4 py-4 text-slate-600">
-                  {task.responsibleUser?.name ?? "Nicht zugewiesen"}
-                </td>
-                <td className="px-4 py-4">
-                  <StatusBadge color={priority.color}>
-                    {priority.label}
-                  </StatusBadge>
-                </td>
-                <td className="px-4 py-4">
-                  <StatusBadge color={status.color}>{status.label}</StatusBadge>
-                </td>
-                <td className="px-5 py-4 text-right font-semibold text-slate-700">
-                  {formatDate(task.dueDate)}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function DeferredCockpitCard({
-  title,
-  description,
-}: {
-  title: string;
-  description: string;
-}) {
-  return (
-    <Card>
-      <div className="border-b border-slate-200 px-5 py-4">
-        <h2 className="text-brand-950 font-bold">{title}</h2>
-        <p className="text-muted mt-1 text-xs">{description}</p>
-      </div>
-      <div className="space-y-3 p-5" aria-busy="true">
-        <div className="h-4 w-3/4 animate-pulse rounded bg-slate-200" />
-        <div className="h-4 w-1/2 animate-pulse rounded bg-slate-200" />
-        <div className="h-4 w-2/3 animate-pulse rounded bg-slate-200" />
-      </div>
-    </Card>
-  );
-}
-
-async function CockpitTaskPreviewSections({ eventId }: { eventId: string }) {
-  const { nextDeadlines, overdueTasks, criticalTasks } =
-    await getEventCockpitTaskPreviews(eventId);
-
-  return (
-    <>
-      <Card>
-        <div className="border-b border-slate-200 px-5 py-4">
-          <h2 className="text-brand-950 font-bold">Nächste 5 Deadlines</h2>
-          <p className="text-muted mt-1 text-xs">
-            Die nächsten noch offenen Aufgaben ab heute
-          </p>
-        </div>
-        <TaskTable
-          emptyDescription="Es gibt derzeit keine offenen Aufgaben mit einer zukünftigen Fälligkeit."
-          emptyTitle="Keine anstehenden Deadlines"
-          tasks={nextDeadlines}
-        />
-      </Card>
-
-      <Card>
-        <div className="border-b border-slate-200 px-5 py-4">
-          <h2 className="font-bold text-red-800">Überfällige Aufgaben</h2>
-          <p className="text-muted mt-1 text-xs">
-            Offene Aufgaben mit überschrittener Fälligkeit
-          </p>
-        </div>
-        <TaskTable
-          emptyDescription="Alle fälligen Aufgaben sind erledigt oder liegen noch in der Zukunft."
-          emptyTitle="Keine überfälligen Aufgaben"
-          tasks={overdueTasks}
-        />
-      </Card>
-
-      <Card>
-        <div className="border-b border-slate-200 px-5 py-4">
-          <h2 className="font-bold text-red-800">Kritische Aufgaben</h2>
-          <p className="text-muted mt-1 text-xs">
-            Offene Aufgaben, die für den Eventerfolg besonders relevant sind
-          </p>
-        </div>
-        <TaskTable
-          emptyDescription="Aktuell ist keine offene Aufgabe als kritisch markiert."
-          emptyTitle="Keine kritischen Aufgaben"
-          tasks={criticalTasks}
-        />
-      </Card>
-    </>
-  );
-}
-
-async function CockpitAuditSection({
+function PersonalTasks({
   eventId,
-  eventTitle,
+  tasks,
+  empty,
 }: {
   eventId: string;
-  eventTitle: string;
+  tasks: Awaited<ReturnType<typeof getEventWorkspaceData>>["myTasks"];
+  empty: string;
 }) {
-  const auditLogs = await getEventCockpitAuditLogs(eventId, eventTitle);
-
-  return (
-    <Card>
-      <div className="border-b border-slate-200 px-5 py-4">
-        <h2 className="text-brand-950 font-bold">Änderungsverlauf</h2>
-        <p className="text-muted mt-1 text-xs">
-          Die letzten wichtigen Änderungen an Event und Aufgaben
-        </p>
-      </div>
-      <AuditHistory logs={auditLogs} />
-    </Card>
+  return tasks.length === 0 ? (
+    <p className="px-5 py-4 text-sm text-slate-500">{empty}</p>
+  ) : (
+    <ul className="max-h-80 divide-y divide-slate-100 overflow-y-auto">
+      {tasks.map((task) => {
+        const status = getTaskStatusPresentation(task.status);
+        return (
+          <li key={task.id} className="px-5 py-3">
+            <Link
+              className="text-brand-950 font-semibold hover:underline"
+              href={getTaskHref(eventId, task.id, "/events/" + eventId)}
+            >
+              {task.title}
+            </Link>
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+              <span>
+                {getPhaseLabel(task.phase)} · Fällig: {formatDate(task.dueDate)}
+              </span>
+              <StatusBadge color={status.color}>{status.label}</StatusBadge>
+              {task.isCritical ? (
+                <StatusBadge color="red">Kritisch</StatusBadge>
+              ) : null}
+            </div>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -767,22 +495,15 @@ export default async function EventCockpitPage({
   searchParams: Promise<SearchParams>;
 }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
-  const [cockpit, currentUser] = await Promise.all([
+  const [cockpit, currentUser, workspace] = await Promise.all([
     getEventCockpitOverview(id),
     getCurrentUser(),
+    getEventWorkspaceData(id),
   ]);
-
-  if (!cockpit) {
-    notFound();
-  }
-
-  const {
-    event,
-    metrics,
-    participantMetrics,
-    readiness,
-    taskSummary,
-  } = cockpit;
+  if (!cockpit) notFound();
+  const { event, metrics, participantMetrics, readiness, taskSummary } =
+    cockpit;
+  const canManageEvents = hasPermission(currentUser, Permission.MANAGE_EVENTS);
   const planningResult =
     firstValue(query.planning) === "recalculated"
       ? {
@@ -791,331 +512,295 @@ export default async function EventCockpitPage({
           withoutOffset: Number(firstValue(query.withoutOffset) ?? 0),
         }
       : null;
-  const tasksWithOffset = taskSummary.tasksWithOffset;
-  const manualOverrideCount = taskSummary.manualOverrideCount;
-  const canManageEvents = hasPermission(currentUser, Permission.MANAGE_EVENTS);
   const links = [
     ["Eventlink", event.registrationUrl],
     ["Feedbackformular", event.feedbackFormUrl],
   ]
-    .map(([label, value]) => ({
-      label,
-      href: getSafeExternalUrl(value),
-    }))
+    .map(([label, value]) => ({ label, href: getSafeExternalUrl(value) }))
     .filter(
       (link): link is { label: string; href: string } => link.href !== null,
     );
-  const moduleActions = [
-    canManageEvents
-      ? {
-          title: "Event bearbeiten",
-          description: "Stammdaten, Rollen, Links oder Event löschen",
-          href: `/events/${event.id}/edit`,
-        }
-      : null,
-    {
-      title: "Aufgaben planen",
-      description: "Aufgaben, Status, Verantwortliche und Fälligkeiten",
-      href: `/events/${event.id}/tasks`,
-    },
-    {
-      title: "Kommunikation planen",
-      description: "Kanäle, Botschaften, Freigaben und Kennzahlen",
-      href: `/events/${event.id}/communications`,
-    },
-    {
-      title: "Teilnehmende verwalten",
-      description: "Kontaktliste und CSV-Import",
-      href: `/events/${event.id}/participants`,
-    },
-    {
-      title: "Evaluation & Wirkung",
-      description: "Kennzahlen, No-Show-Quote und Learnings",
-      href: `/events/${event.id}/evaluation`,
-    },
-  ].filter(
-    (action): action is { title: string; description: string; href: string } =>
-      action !== null,
-  );
-
+  const sections = [
+    ["Aufgaben", "/tasks"],
+    ["Kommunikation", "/communications"],
+    ["Teilnehmende", "/participants"],
+    ["Evaluation", "/evaluation"],
+  ];
   return (
     <>
-      <div className="mb-5">
-        <Link
-          className="text-brand-700 hover:text-brand-950 text-sm font-semibold"
-          href="/events"
-        >
-          ← Zurück zur Eventliste
-        </Link>
-      </div>
-
+      <Link
+        className="text-brand-700 mb-4 inline-block text-sm font-semibold hover:underline"
+        href="/events"
+      >
+        ← Eventliste
+      </Link>
       <Card className="mb-6 overflow-hidden">
-        <div className="grid gap-5 p-5 xl:grid-cols-[1fr_280px] xl:p-6">
-          <div>
-            <div className="mb-3 flex flex-wrap items-center gap-3">
-              <span className="text-sm font-medium text-slate-500">
-                {event.format ?? "Format nicht festgelegt"}
-              </span>
-            </div>
-            <h1 className="text-brand-950 max-w-5xl text-2xl font-bold tracking-tight sm:text-3xl">
+        <div className="flex items-start justify-between gap-4 p-5">
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-slate-500">
+              {event.format ?? "Format offen"}
+            </p>
+            <h1 className="text-brand-950 mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
               {event.title}
             </h1>
-            <p className="text-muted mt-2 max-w-4xl text-sm leading-6 sm:text-base">
-              {event.description ??
-                "Für dieses Event ist noch keine Beschreibung hinterlegt."}
-            </p>
-            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:max-w-3xl">
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <p className="text-xs font-bold tracking-wide text-slate-500 uppercase">
-                  Termin
-                </p>
-                <p className="text-brand-950 mt-1 text-sm font-bold">
-                  {formatEventDateTime(
-                    event.eventDate,
-                    event.startTime,
-                    event.endTime,
-                  )}
-                </p>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <p className="text-xs font-bold tracking-wide text-slate-500 uppercase">
-                  Ort
-                </p>
-                <p className="text-brand-950 mt-1 text-sm font-bold">
-                  {event.location ?? "Nicht hinterlegt"}
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="flex flex-col gap-3 sm:flex-row xl:flex-col">
-            <div className="shadow-card min-w-48 rounded-xl border border-slate-200 bg-white px-5 py-4">
-              <p className="text-xs font-bold tracking-wide text-slate-500 uppercase">
-                Gesamtfortschritt
-              </p>
-              <div className="mt-2 flex items-center gap-3">
-                <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200">
-                  <div
-                    className="bg-brand-700 h-full rounded-full"
-                    style={{ width: `${metrics.progress}%` }}
-                  />
-                </div>
-                <span className="text-brand-950 text-xl font-bold">
-                  {metrics.progress}%
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="border-t border-slate-200 bg-slate-50/70 p-4 xl:p-5">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 className="text-brand-950 text-sm font-bold">
-              Event-Funktionen
-            </h2>
-            <span className="text-xs font-medium text-slate-500">
-              Alles Wichtige auf einen Blick
-            </span>
-          </div>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {moduleActions.map((action) => (
-              <ModuleActionLink key={action.href} {...action} />
-            ))}
-          </div>
-        </div>
-      </Card>
-
-      {planningResult ? (
-        <div
-          className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
-          role="status"
-        >
-          <strong>{planningResult.updated} Fälligkeiten aktualisiert.</strong>
-          {planningResult.skipped > 0
-            ? ` ${planningResult.skipped} manuell überschriebene Termine wurden geschützt.`
-            : ""}
-          {planningResult.withoutOffset > 0
-            ? ` ${planningResult.withoutOffset} Aufgaben ohne Offset blieben unverändert.`
-            : ""}
-        </div>
-      ) : null}
-
-      <TemplateSaveMessage query={query} />
-
-      <ReadinessCard eventId={event.id} readiness={readiness} />
-
-      <ParticipantCard eventId={event.id} metrics={participantMetrics} />
-
-      <EvaluationCard event={event} />
-
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard
-          hint={`${metrics.completedTasks} von ${metrics.totalTasks} relevanten Aufgaben erledigt`}
-          label="Fortschritt"
-          tone="blue"
-          value={`${metrics.progress}%`}
-        />
-        <MetricCard
-          hint="Noch nicht abgeschlossen"
-          label="Offene Aufgaben"
-          value={metrics.openTasks}
-        />
-        <MetricCard
-          hint="Fälligkeit bereits überschritten"
-          label="Überfällig"
-          tone={metrics.overdueTasks > 0 ? "red" : "green"}
-          value={metrics.overdueTasks}
-        />
-        <MetricCard
-          hint="Offen und als kritisch markiert"
-          label="Kritische Aufgaben"
-          tone={metrics.criticalOpenTasks > 0 ? "red" : "green"}
-          value={metrics.criticalOpenTasks}
-        />
-      </div>
-
-      <div className="mt-6 grid gap-6 xl:grid-cols-[1.35fr_1fr]">
-        <Card>
-          <div className="border-b border-slate-200 px-5 py-4">
-            <h2 className="text-brand-950 font-bold">Stammdaten</h2>
-            <p className="text-muted mt-1 text-xs">
-              Fachliche und organisatorische Eckdaten des Events
-            </p>
-          </div>
-          <dl className="grid gap-x-6 gap-y-5 p-5 sm:grid-cols-2">
-            <DetailField
-              label="Eventdatum"
-              value={formatEventDateTime(
+            <p className="mt-2 text-sm text-slate-700">
+              {formatEventDateTime(
                 event.eventDate,
                 event.startTime,
                 event.endTime,
-              )}
-            />
-            <DetailField label="Location" value={event.location} />
+              )}{" "}
+              · {event.location ?? "Ort offen"}
+            </p>
+            <p className="mt-2 text-xs leading-5 text-slate-500">
+              Lead: {event.eventLead?.name ?? "Offen"} · Co-Lead:{" "}
+              {event.coLead?.name ?? "Offen"} · Kommunikation:{" "}
+              {event.communicationOwner?.name ?? "Offen"}
+            </p>
+          </div>
+          {canManageEvents ? (
+            <Link
+              className="text-brand-700 flex size-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 hover:bg-slate-50"
+              href={"/events/" + id + "/edit"}
+              aria-label="Event-Stammdaten bearbeiten"
+              title="Event-Stammdaten bearbeiten"
+            >
+              <span aria-hidden="true">↗</span>
+            </Link>
+          ) : null}
+        </div>
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-slate-200 px-5 py-3 text-sm">
+          <strong>
+            {metrics.totalTasks === 0
+              ? "Noch keine Aufgaben"
+              : metrics.progress + "% abgeschlossen"}
+          </strong>
+          <Link
+            className="hover:underline"
+            href={"/events/" + id + "/tasks?openOnly=true"}
+          >
+            {metrics.openTasks} offene Aufgaben
+          </Link>
+          <Link
+            className="text-red-700 hover:underline"
+            href={"/events/" + id + "/tasks?due=overdue"}
+          >
+            {metrics.overdueTasks} überfällig
+          </Link>
+          <Link
+            className="hover:underline"
+            href={"/events/" + id + "/tasks?critical=true&openOnly=true"}
+          >
+            {metrics.criticalOpenTasks} kritisch und offen
+          </Link>
+        </div>
+        <nav
+          aria-label="Eventbereiche"
+          className="flex flex-wrap gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3"
+        >
+          {sections.map(([label, path]) => (
+            <Link
+              key={path}
+              className="text-brand-800 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold hover:bg-slate-100"
+              href={"/events/" + id + path}
+            >
+              {label}
+            </Link>
+          ))}
+        </nav>
+      </Card>
+      {planningResult ? (
+        <div
+          role="status"
+          className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
+        >
+          <strong>{planningResult.updated} Fälligkeiten aktualisiert.</strong>{" "}
+          {planningResult.skipped} manuelle Termine geschützt;{" "}
+          {planningResult.withoutOffset} Aufgaben ohne Offset unverändert.
+        </div>
+      ) : null}
+      <TemplateSaveMessage query={query} />
+      <div className="grid items-start gap-6 lg:grid-cols-2">
+        <Card>
+          <div className="border-b border-slate-200 px-5 py-4">
+            <h2 className="text-brand-950 font-bold">Mein Arbeitsbereich</h2>
+            <p className="mt-1 text-xs text-slate-500">
+              Aufgaben und Prüfungen für {currentUser.name}
+            </p>
+          </div>
+          <h3 className="bg-slate-50 px-5 py-2 text-sm font-semibold">
+            Meine offenen Aufgaben ({workspace.myTasks.length})
+          </h3>
+          <PersonalTasks
+            eventId={id}
+            tasks={workspace.myTasks}
+            empty="Du hast hier keine offenen Aufgaben."
+          />
+          <h3 className="border-t border-slate-200 bg-slate-50 px-5 py-2 text-sm font-semibold">
+            Meine ausstehenden Prüfungen ({workspace.myReviews.length})
+          </h3>
+          <p className="px-5 pt-3 text-xs text-slate-500">
+            Noch nicht freigegebene Aufgaben, denen du als Prüfer zugeordnet
+            bist.
+          </p>
+          <PersonalTasks
+            eventId={id}
+            tasks={workspace.myReviews}
+            empty="Für dich stehen keine Prüfungen aus."
+          />
+        </Card>
+        <Card className="p-5">
+          <h2 className="text-brand-950 font-bold">Fortschritt je Phase</h2>
+          <p className="mt-1 text-xs text-slate-500">
+            Erledigte und entfallene Aufgaben zählen als abgeschlossen.
+          </p>
+          <div className="mt-5 space-y-5">
+            {workspace.phases.map((phase) => (
+              <div key={phase.phase}>
+                <div className="mb-2 flex items-center justify-between gap-3 text-sm">
+                  <Link
+                    className="font-semibold hover:underline"
+                    href={"/events/" + id + "/tasks?phase=" + phase.phase}
+                  >
+                    {getPhaseLabel(phase.phase)}
+                  </Link>
+                  <span className="text-xs text-slate-500">
+                    {phase.total === 0
+                      ? "Noch keine Aufgaben"
+                      : phase.completed +
+                        " / " +
+                        phase.total +
+                        " · " +
+                        phase.progress +
+                        "%"}
+                  </span>
+                </div>
+                <div
+                  role="progressbar"
+                  aria-label={getPhaseLabel(phase.phase)}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={phase.progress}
+                  aria-valuetext={
+                    phase.total === 0
+                      ? "Noch keine Aufgaben"
+                      : phase.completed +
+                        " von " +
+                        phase.total +
+                        " Aufgaben abgeschlossen"
+                  }
+                  className="h-2 overflow-hidden rounded-full bg-slate-100"
+                >
+                  <div
+                    className="bg-brand-700 h-full rounded-full"
+                    style={{ width: phase.progress + "%" }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+      <div className="mt-6 space-y-4">
+        <details className="rounded-xl border border-slate-200 bg-white">
+          <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">
+            Veranstaltungsbereitschaft: {readiness.score} / 100 ·{" "}
+            {readiness.level.label}
+          </summary>
+          <div className="px-4 pb-1">
+            <ReadinessCard eventId={id} readiness={readiness} />
+          </div>
+        </details>
+        <details className="rounded-xl border border-slate-200 bg-white">
+          <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">
+            Stammdaten & zentrale Links
+          </summary>
+          <dl className="grid gap-5 border-t border-slate-200 p-5 sm:grid-cols-2">
             <DetailField
+              label="Beschreibung"
+              value={event.description}
               className="sm:col-span-2"
-              label="Zielgruppe"
-              value={event.targetAudience}
             />
+            <DetailField label="Zielgruppe" value={event.targetAudience} />
             <DetailField
-              className="sm:col-span-2"
-              label="Ziele, Nutzenversprechen, gewünschtes Ergebnis"
+              label="Ziele und gewünschtes Ergebnis"
               value={event.goal}
             />
           </dl>
-        </Card>
-
-        <div className="space-y-6">
-          <Card>
-            <div className="border-b border-slate-200 px-5 py-4">
-              <h2 className="text-brand-950 font-bold">Verantwortlichkeiten</h2>
-            </div>
-            <dl className="space-y-4 p-5">
-              <DetailField label="Event Lead" value={event.eventLead?.name} />
-              <DetailField label="Co-Lead" value={event.coLead?.name} />
-              <DetailField
-                label="Kommunikation"
-                value={event.communicationOwner?.name}
-              />
-            </dl>
-          </Card>
-
-          <Card>
-            <div className="border-b border-slate-200 px-5 py-4">
-              <h2 className="text-brand-950 font-bold">Zentrale Links</h2>
-            </div>
+          <div className="flex flex-wrap gap-3 px-5 pb-5">
             {links.length === 0 ? (
-              <div className="p-5">
-                <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600">
-                  Für dieses Event sind noch keine zentralen Links hinterlegt.
-                </p>
-              </div>
-            ) : (
-              <div className="grid gap-2 p-5 sm:grid-cols-2 xl:grid-cols-1">
-                {links.map((link) => (
-                  <a
-                    className="text-brand-800 hover:border-brand-300 hover:bg-brand-50 flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-semibold"
-                    href={link.href}
-                    key={link.label}
-                    rel="noreferrer"
-                    target="_blank"
-                  >
-                    {link.label}
-                    <span aria-hidden="true">↗</span>
-                  </a>
-                ))}
-              </div>
-            )}
-          </Card>
-
-          <Card>
-            <div className="border-b border-slate-200 px-5 py-4">
-              <h2 className="text-brand-950 font-bold">Rückwärtsplanung</h2>
-              <p className="text-muted mt-1 text-xs">
-                Nach einer Änderung des Eventdatums explizit auslösen
+              <p className="text-sm text-slate-500">
+                Keine zentralen Links hinterlegt.
               </p>
-            </div>
-            <div className="p-5">
-              {tasksWithOffset > 0 && canManageEvents ? (
-                <RecalculateDueDatesForm
-                  eventId={event.id}
-                  manualOverrideCount={manualOverrideCount}
-                  tasksWithOffset={tasksWithOffset}
-                />
-              ) : tasksWithOffset === 0 ? (
-                <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600">
-                  Keine Aufgaben mit hinterlegtem Offset vorhanden.
-                </p>
-              ) : (
-                <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600">
-                  Die Neuberechnung kann nur durch Admins oder Event Leads
-                  ausgelöst werden.
-                </p>
-              )}
-            </div>
-          </Card>
-
-          {canManageEvents ? (
-            <Card>
-              <div className="border-b border-slate-200 px-5 py-4">
-                <h2 className="text-brand-950 font-bold">Vorlage aus Event</h2>
-                <p className="text-muted mt-1 text-xs">
-                  Aktuelle Aufgabenliste für gleiche künftige Events sichern
-                </p>
+            ) : (
+              links.map((link) => (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-brand-700 text-sm font-semibold hover:underline"
+                >
+                  {link.label} ↗
+                </a>
+              ))
+            )}
+          </div>
+        </details>
+        <details className="rounded-xl border border-slate-200 bg-white">
+          <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">
+            Teilnehmende ({participantMetrics.total}) & Evaluation
+          </summary>
+          <div className="px-4 pb-4">
+            <ParticipantCard eventId={id} metrics={participantMetrics} />
+            <EvaluationCard event={event} />
+          </div>
+        </details>
+        {canManageEvents ? (
+          <details
+            className="rounded-xl border border-slate-200 bg-white"
+            open={
+              planningResult || firstValue(query.template) ? true : undefined
+            }
+          >
+            <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">
+              Planungswerkzeuge & Eventverwaltung
+            </summary>
+            <div className="grid gap-6 border-t border-slate-200 p-5 lg:grid-cols-2">
+              <div>
+                <h3 className="mb-3 font-semibold">
+                  Fälligkeiten neu berechnen
+                </h3>
+                {taskSummary.tasksWithOffset > 0 ? (
+                  <RecalculateDueDatesForm
+                    eventId={id}
+                    manualOverrideCount={taskSummary.manualOverrideCount}
+                    tasksWithOffset={taskSummary.tasksWithOffset}
+                  />
+                ) : (
+                  <p className="text-sm text-slate-500">
+                    Keine Aufgaben mit hinterlegtem Offset vorhanden.
+                  </p>
+                )}
               </div>
-              <div className="p-5">
+              <div>
+                <h3 className="mb-3 font-semibold">Vorlage aus diesem Event</h3>
                 <SaveTemplateFromEventForm
-                  eventId={event.id}
+                  eventId={id}
                   eventTitle={event.title}
                   taskCount={taskSummary.taskCount}
                 />
               </div>
-            </Card>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="mt-6 space-y-6">
-        <Suspense
-          fallback={
-            <DeferredCockpitCard
-              description="Deadlines und kritische Aufgaben werden nachgeladen."
-              title="Aufgabenlisten"
-            />
-          }
-        >
-          <CockpitTaskPreviewSections eventId={event.id} />
-        </Suspense>
-
-        <Suspense
-          fallback={
-            <DeferredCockpitCard
-              description="Die letzten Änderungen werden nachgeladen."
-              title="Änderungsverlauf"
-            />
-          }
-        >
-          <CockpitAuditSection eventId={event.id} eventTitle={event.title} />
-        </Suspense>
+            </div>
+            <div className="px-5 pb-5">
+              <Link
+                className="text-sm font-semibold text-red-700 hover:underline"
+                href={"/events/" + id + "/edit?section=delete#event-loeschen"}
+              >
+                Event löschen …
+              </Link>
+            </div>
+          </details>
+        ) : null}
       </div>
     </>
   );

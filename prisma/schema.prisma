@@ -40,21 +40,13 @@ enum TaskPriority {
   LOW
   MEDIUM
   HIGH
-  CRITICAL
 }
 
 enum EventPhase {
   CONCEPTION
-  FOUR_EYES_REVIEW
-  LOCATION_CATERING
-  SPEAKERS_PARTNERS
-  COMMUNICATION
-  PARTICIPANT_MANAGEMENT
-  MATERIAL_PRESENTATION
-  TECHNOLOGY
-  EVENT_DAY
+  PLANNING
+  EXECUTION
   FOLLOW_UP
-  EVALUATION
 }
 
 enum PlannerSyncStatus {
@@ -357,6 +349,7 @@ model TaskTemplate {
   title                  String
   description            String?
   phase                  EventPhase
+  workPackage            String?
   defaultResponsibleRole UserRole
   defaultReviewerRole    UserRole?
   priority               TaskPriority @default(MEDIUM)
@@ -375,6 +368,7 @@ model EventTask {
   title                       String
   description                 String?
   phase                       EventPhase
+  workPackage                 String?
   responsibleUserId           String?
   reviewerUserId              String?
   status                      TaskStatus        @default(OPEN)

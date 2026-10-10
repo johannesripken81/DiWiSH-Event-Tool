@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "tsx --test src/lib/audit-log.test.ts src/lib/cron-auth.test.ts src/lib/login-rate-limit.test.ts src/lib/password.test.ts src/lib/permissions.test.ts src/modules/tasks/reverse-planning.test.ts src/modules/events/template-tasks.test.ts src/modules/events/default-templates.test.ts src/modules/events/readiness.test.ts src/modules/events/metrics.test.ts src/modules/communications/metrics.test.ts src/modules/evaluations/metrics.test.ts src/modules/participants/csv-import.test.ts src/modules/notifications/due-notifications.test.ts src/modules/notifications/due-task-emails.test.ts",
+    "test": "tsx --test src/lib/audit-log.test.ts src/lib/cron-auth.test.ts src/lib/login-rate-limit.test.ts src/lib/password.test.ts src/lib/permissions.test.ts src/modules/tasks/reverse-planning.test.ts src/modules/tasks/list-state.test.ts src/modules/tasks/assignment.test.ts src/modules/events/template-tasks.test.ts src/modules/events/default-templates.test.ts src/modules/events/readiness.test.ts src/modules/events/metrics.test.ts src/modules/communications/metrics.test.ts src/modules/evaluations/metrics.test.ts src/modules/participants/csv-import.test.ts src/modules/notifications/due-notifications.test.ts src/modules/notifications/due-task-emails.test.ts src/modules/events/phase-progress.test.ts",
     "typecheck": "next typegen && tsc --noEmit",
     "quality": "npm run db:validate && npm run typecheck && npm run lint && npm test && npm run build",
     "postinstall": "prisma generate",
@@ -21,11 +21,14 @@
     "db:seed": "prisma db seed",
     "db:setup": "prisma generate && prisma validate && prisma migrate dev && prisma db seed",
     "db:studio": "prisma studio",
+    "feedback:test-migration": "tsx scripts/check-phase-migration.ts",
+    "feedback:check": "tsx scripts/check-feedback-gaps.ts",
     "notifications:generate": "tsx scripts/generate-due-notifications.ts",
     "notifications:email-due-today": "tsx scripts/send-due-task-emails.ts",
     "templates:ensure-defaults": "tsx scripts/ensure-default-event-templates.ts",
     "user:ensure-admin": "tsx scripts/ensure-admin-user.ts",
-    "user:set-password": "tsx scripts/set-user-password.ts"
+    "user:set-password": "tsx scripts/set-user-password.ts",
+    "feedback:test-dashboard": "tsx scripts/check-dashboard-layout.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.8.0",

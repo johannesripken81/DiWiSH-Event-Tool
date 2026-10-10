@@ -31,21 +31,13 @@ export const taskPriorityOptions = [
   TaskPriority.LOW,
   TaskPriority.MEDIUM,
   TaskPriority.HIGH,
-  TaskPriority.CRITICAL,
 ] as const;
 
 export const eventPhaseOptions = [
   EventPhase.CONCEPTION,
-  EventPhase.FOUR_EYES_REVIEW,
-  EventPhase.LOCATION_CATERING,
-  EventPhase.SPEAKERS_PARTNERS,
-  EventPhase.COMMUNICATION,
-  EventPhase.PARTICIPANT_MANAGEMENT,
-  EventPhase.MATERIAL_PRESENTATION,
-  EventPhase.TECHNOLOGY,
-  EventPhase.EVENT_DAY,
+  EventPhase.PLANNING,
+  EventPhase.EXECUTION,
   EventPhase.FOLLOW_UP,
-  EventPhase.EVALUATION,
 ] as const;
 
 const eventStatusPresentation: Record<
@@ -75,16 +67,9 @@ const taskStatusPresentation: Record<
 
 const phaseLabels: Record<EventPhase, string> = {
   CONCEPTION: "Konzeption",
-  FOUR_EYES_REVIEW: "Vier-Augen-Prüfung",
-  LOCATION_CATERING: "Location & Catering",
-  SPEAKERS_PARTNERS: "Speaker & Partner",
-  COMMUNICATION: "Kommunikation",
-  PARTICIPANT_MANAGEMENT: "Teilnehmermanagement",
-  MATERIAL_PRESENTATION: "Material & Präsentation",
-  TECHNOLOGY: "Technik",
-  EVENT_DAY: "Eventtag",
+  PLANNING: "Planung",
+  EXECUTION: "Durchführung",
   FOLLOW_UP: "Nachbereitung",
-  EVALUATION: "Evaluation",
 };
 
 const priorityPresentation: Record<
@@ -94,7 +79,6 @@ const priorityPresentation: Record<
   LOW: { label: "Niedrig", color: "gray" },
   MEDIUM: { label: "Mittel", color: "blue" },
   HIGH: { label: "Hoch", color: "yellow" },
-  CRITICAL: { label: "Kritisch", color: "red" },
 };
 
 const plannerSyncPresentation: Record<
@@ -141,6 +125,17 @@ export function formatDate(date: Date | null) {
   }).format(date);
 }
 
+export function formatEventDate(date: Date | null) {
+  if (!date) return "Nicht festgelegt";
+  return new Intl.DateTimeFormat("de-DE", {
+    weekday: "long",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(date);
+}
+
 export function formatTime(date: Date | null) {
   if (!date) {
     return null;
@@ -158,7 +153,7 @@ export function formatEventDateTime(
   startTime: Date | null,
   endTime: Date | null,
 ) {
-  const date = formatDate(eventDate);
+  const date = formatEventDate(eventDate);
   const start = formatTime(startTime);
   const end = formatTime(endTime);
 

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { getTaskReturnTo } from "@/modules/tasks/list-state";
 
 import { PlannerSyncStatus, TaskStatus } from "@/generated/prisma/client";
 import {
@@ -124,6 +125,7 @@ type TaskAuditSource = {
   title: string;
   description: string | null;
   phase: string;
+  workPackage?: string | null;
   responsibleUserId: string | null;
   reviewerUserId: string | null;
   status: string;
@@ -141,6 +143,7 @@ function getTaskAuditValue(task: TaskAuditSource): AuditSnapshot {
     title: task.title,
     description: task.description,
     phase: task.phase,
+    workPackage: task.workPackage ?? null,
     responsibleUserName: task.responsibleUser?.name ?? null,
     reviewerUserName: task.reviewerUser?.name ?? null,
     status: task.status,
@@ -200,6 +203,7 @@ export async function createTaskAction(
           title: input.title,
           description: optionalTaskValue(input.description),
           phase: input.phase,
+          workPackage: input.workPackage || null,
           responsibleUserId: optionalTaskValue(input.responsibleUserId),
           reviewerUserId: optionalTaskValue(input.reviewerUserId),
           status: input.status,
@@ -299,8 +303,10 @@ export async function updateTaskAction(
 
   if (
     !canManageAllTasks &&
-    (optionalTaskValue(input.responsibleUserId) !==
-      existingTask.responsibleUserId ||
+    (input.phase !== existingTask.phase ||
+      optionalTaskValue(input.workPackage) !== existingTask.workPackage ||
+      optionalTaskValue(input.responsibleUserId) !==
+        existingTask.responsibleUserId ||
       optionalTaskValue(input.reviewerUserId) !== existingTask.reviewerUserId ||
       input.approvalRequired !== existingTask.approvalRequired)
   ) {
@@ -333,6 +339,7 @@ export async function updateTaskAction(
           title: input.title,
           description: optionalTaskValue(input.description),
           phase: input.phase,
+          workPackage: input.workPackage || null,
           responsibleUserId: optionalTaskValue(input.responsibleUserId),
           reviewerUserId: optionalTaskValue(input.reviewerUserId),
           status: input.status,
@@ -518,11 +525,13 @@ export async function updateTaskAction(
   }
 
   revalidateTaskViews(input.eventId);
-  redirect(
-    shiftedFollowingTasks > 0
-      ? `/events/${input.eventId}/tasks?shifted=${shiftedFollowingTasks}`
-      : `/events/${input.eventId}/tasks`,
+  const returnUrl = new URL(
+    getTaskReturnTo(input.eventId, formData.get("returnTo")),
+    "https://event-tool.invalid",
   );
+  if (shiftedFollowingTasks > 0)
+    returnUrl.searchParams.set("shifted", String(shiftedFollowingTasks));
+  redirect(`${returnUrl.pathname}${returnUrl.search}${returnUrl.hash}`);
 }
 
 export async function changeTaskStatusAction(formData: FormData) {
@@ -661,4 +670,5 @@ export async function approveTaskAction(formData: FormData) {
   });
 
   revalidateTaskViews(eventId);
+  revalidatePath(`/events/${eventId}/tasks/${task.id}`);
 }

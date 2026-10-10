@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { workPackageOptions } from "@/modules/tasks/work-packages";
 
 import { EventPhase, TaskPriority, UserRole } from "@/generated/prisma/enums";
 import { minimumPasswordLength } from "@/lib/password";
@@ -115,6 +116,7 @@ export const taskTemplateSettingsSchema = z.object({
     .trim()
     .max(2000, "Beschreibung darf höchstens 2.000 Zeichen haben."),
   phase: z.enum(EventPhase),
+  workPackage: z.union([z.enum(workPackageOptions), z.literal("")]),
   defaultResponsibleRole: z.enum(UserRole),
   defaultReviewerRole: z.union([z.enum(UserRole), z.literal("")]),
   priority: z.enum(TaskPriority),
@@ -184,6 +186,7 @@ export function parseTaskTemplateSettings(formData: FormData) {
     title: getString(formData, "title"),
     description: getString(formData, "description"),
     phase: getString(formData, "phase"),
+    workPackage: getString(formData, "workPackage"),
     defaultResponsibleRole: getString(formData, "defaultResponsibleRole"),
     defaultReviewerRole: getString(formData, "defaultReviewerRole"),
     priority: getString(formData, "priority"),

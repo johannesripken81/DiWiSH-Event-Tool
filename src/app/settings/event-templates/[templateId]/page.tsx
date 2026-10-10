@@ -22,6 +22,7 @@ import {
   EditableDetails,
   FieldLabel,
   PhaseSelect,
+  WorkPackageSelect,
   PrioritySelect,
   ReviewerRoleSelect,
   RoleSelect,
@@ -32,6 +33,8 @@ import {
   secondaryButtonClass,
   textareaClass,
 } from "../../settings-ui";
+
+import { getWorkPackageLabel } from "@/modules/tasks/work-packages";
 
 export const metadata: Metadata = {
   title: "Eventvorlage bearbeiten",
@@ -224,10 +227,11 @@ export default async function EventTemplateSettingsPage({
                     <tr>
                       <th className="px-4 py-3">Aufgabe</th>
                       <th className="px-4 py-3">Phase</th>
+                      <th className="px-4 py-3">Arbeitspaket</th>
                       <th className="px-4 py-3">Offset</th>
                       <th className="px-4 py-3">Verantwortung</th>
                       <th className="px-4 py-3">Priorität</th>
-                      <th className="px-4 py-3">Kritisch</th>
+                      <th className="px-4 py-3">Für das Event kritisch</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -250,6 +254,9 @@ export default async function EventTemplateSettingsPage({
                           </td>
                           <td className="px-4 py-3 text-slate-700">
                             {getPhaseLabel(taskTemplate.phase)}
+                          </td>
+                          <td className="px-4 py-3 text-slate-700">
+                            {getWorkPackageLabel(taskTemplate.workPackage)}
                           </td>
                           <td className="px-4 py-3 font-semibold text-slate-700">
                             {taskTemplate.offsetDays} Tage
@@ -310,6 +317,9 @@ export default async function EventTemplateSettingsPage({
                         placeholder="Aufgabe"
                       />
                       <PhaseSelect defaultValue={taskTemplate.phase} />
+                      <WorkPackageSelect
+                        defaultValue={taskTemplate.workPackage}
+                      />
                       <input
                         className={inputClass}
                         defaultValue={taskTemplate.offsetDays}
@@ -330,7 +340,7 @@ export default async function EventTemplateSettingsPage({
                           name="isCritical"
                           type="checkbox"
                         />
-                        Kritisch
+                        Für das Event kritisch
                       </label>
                       <label className="flex items-center gap-2 text-xs font-semibold text-slate-700">
                         <input
@@ -392,6 +402,7 @@ export default async function EventTemplateSettingsPage({
                       required
                     />
                     <PhaseSelect defaultValue={EventPhase.CONCEPTION} />
+                    <WorkPackageSelect />
                     <input
                       className={inputClass}
                       defaultValue="-30"
@@ -406,7 +417,7 @@ export default async function EventTemplateSettingsPage({
                     <PrioritySelect defaultValue={TaskPriority.MEDIUM} />
                     <label className="flex items-center gap-2 text-xs font-semibold text-slate-700">
                       <input name="isCritical" type="checkbox" />
-                      Kritisch
+                      Für das Event kritisch
                     </label>
                     <label className="flex items-center gap-2 text-xs font-semibold text-slate-700">
                       <input name="approvalRequired" type="checkbox" />

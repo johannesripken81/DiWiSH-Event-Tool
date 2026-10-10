@@ -4,7 +4,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { TaskPriority, UserRole } from "@/generated/prisma/enums";
+import { UserRole } from "@/generated/prisma/enums";
 import { clearCurrentUserCache, getCurrentUser } from "@/lib/current-user";
 import { getDb } from "@/lib/db";
 import { hashPassword, isPasswordLongEnough } from "@/lib/password";
@@ -344,12 +344,13 @@ export async function createTaskTemplateAction(formData: FormData) {
       title: input.title,
       description: input.description || null,
       phase: input.phase,
+      workPackage: input.workPackage || null,
       defaultResponsibleRole: input.defaultResponsibleRole,
       defaultReviewerRole: input.defaultReviewerRole || null,
       priority: input.priority,
       offsetDays: input.offsetDays,
       approvalRequired: input.approvalRequired,
-      isCritical: input.isCritical || input.priority === TaskPriority.CRITICAL,
+      isCritical: input.isCritical,
     },
   });
 
@@ -380,12 +381,13 @@ export async function updateTaskTemplateAction(formData: FormData) {
       title: input.title,
       description: input.description || null,
       phase: input.phase,
+      workPackage: input.workPackage || null,
       defaultResponsibleRole: input.defaultResponsibleRole,
       defaultReviewerRole: input.defaultReviewerRole || null,
       priority: input.priority,
       offsetDays: input.offsetDays,
       approvalRequired: input.approvalRequired,
-      isCritical: input.isCritical || input.priority === TaskPriority.CRITICAL,
+      isCritical: input.isCritical,
     },
   });
 

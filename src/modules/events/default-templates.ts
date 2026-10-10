@@ -31,7 +31,7 @@ const largeEventTasks: DefaultTaskTemplate[] = [
     phase: EventPhase.CONCEPTION,
     defaultResponsibleRole: UserRole.EVENT_LEAD,
     defaultReviewerRole: UserRole.ADMIN,
-    priority: TaskPriority.CRITICAL,
+    priority: TaskPriority.HIGH,
     offsetDays: -180,
     approvalRequired: true,
     isCritical: true,
@@ -61,7 +61,8 @@ const largeEventTasks: DefaultTaskTemplate[] = [
   task("Location-Shortlist erstellen", {
     description:
       "Geeignete Locations anhand Kapazität, Erreichbarkeit, Technik und Kosten vorprüfen.",
-    phase: EventPhase.LOCATION_CATERING,
+    phase: EventPhase.PLANNING,
+    workPackage: "LOCATION_CATERING",
     defaultResponsibleRole: UserRole.TEAM_MEMBER,
     defaultReviewerRole: UserRole.EVENT_LEAD,
     priority: TaskPriority.HIGH,
@@ -72,7 +73,8 @@ const largeEventTasks: DefaultTaskTemplate[] = [
   task("Partner- und Sponsoringpakete definieren", {
     description:
       "Mögliche Partnerrollen, Leistungen, Gegenleistungen und Ansprachelogik festlegen.",
-    phase: EventPhase.SPEAKERS_PARTNERS,
+    phase: EventPhase.PLANNING,
+    workPackage: "PARTNERS_SPONSORS",
     defaultResponsibleRole: UserRole.EVENT_LEAD,
     defaultReviewerRole: UserRole.ADMIN,
     priority: TaskPriority.MEDIUM,
@@ -83,7 +85,8 @@ const largeEventTasks: DefaultTaskTemplate[] = [
   task("Speaker-Longlist erstellen", {
     description:
       "Potenzielle Keynotes, Panels und Praxisbeiträge sammeln und priorisieren.",
-    phase: EventPhase.SPEAKERS_PARTNERS,
+    phase: EventPhase.PLANNING,
+    workPackage: "PROGRAM",
     defaultResponsibleRole: UserRole.EVENT_LEAD,
     defaultReviewerRole: null,
     priority: TaskPriority.HIGH,
@@ -94,7 +97,8 @@ const largeEventTasks: DefaultTaskTemplate[] = [
   task("Kommunikationsfahrplan aufsetzen", {
     description:
       "Kanäle, Meilensteine, Kernbotschaften und Freigabepunkte bis zum Event planen.",
-    phase: EventPhase.COMMUNICATION,
+    phase: EventPhase.PLANNING,
+    workPackage: "COMMUNICATION",
     defaultResponsibleRole: UserRole.COMMUNICATION,
     defaultReviewerRole: UserRole.EVENT_LEAD,
     priority: TaskPriority.HIGH,
@@ -105,10 +109,11 @@ const largeEventTasks: DefaultTaskTemplate[] = [
   task("Location verbindlich reservieren", {
     description:
       "Raum, Nebenflächen, Zeiten, Stornofristen und technische Grundausstattung sichern.",
-    phase: EventPhase.LOCATION_CATERING,
+    phase: EventPhase.PLANNING,
+    workPackage: "LOCATION_CATERING",
     defaultResponsibleRole: UserRole.ADMIN,
     defaultReviewerRole: UserRole.EVENT_LEAD,
-    priority: TaskPriority.CRITICAL,
+    priority: TaskPriority.HIGH,
     offsetDays: -115,
     approvalRequired: true,
     isCritical: true,
@@ -116,7 +121,8 @@ const largeEventTasks: DefaultTaskTemplate[] = [
   task("Keynote und Hauptbeiträge anfragen", {
     description:
       "Top-Speaker mit Thema, Erwartung, Zeitfenster und organisatorischem Rahmen anfragen.",
-    phase: EventPhase.SPEAKERS_PARTNERS,
+    phase: EventPhase.PLANNING,
+    workPackage: "PROGRAM",
     defaultResponsibleRole: UserRole.EVENT_LEAD,
     defaultReviewerRole: null,
     priority: TaskPriority.HIGH,
@@ -127,7 +133,8 @@ const largeEventTasks: DefaultTaskTemplate[] = [
   task("Anmeldeseite und Tracking-Konzept vorbereiten", {
     description:
       "Anmeldeformular, Pflichtfelder, Datenschutz, UTM-Logik und Reporting klären.",
-    phase: EventPhase.PARTICIPANT_MANAGEMENT,
+    phase: EventPhase.PLANNING,
+    workPackage: "PARTICIPANT_MANAGEMENT",
     defaultResponsibleRole: UserRole.COMMUNICATION,
     defaultReviewerRole: UserRole.EVENT_LEAD,
     priority: TaskPriority.HIGH,
@@ -138,7 +145,8 @@ const largeEventTasks: DefaultTaskTemplate[] = [
   task("Save-the-Date versenden", {
     description:
       "Termin und Nutzenversprechen frühzeitig über priorisierte Verteiler kommunizieren.",
-    phase: EventPhase.COMMUNICATION,
+    phase: EventPhase.PLANNING,
+    workPackage: "COMMUNICATION",
     defaultResponsibleRole: UserRole.COMMUNICATION,
     defaultReviewerRole: UserRole.EVENT_LEAD,
     priority: TaskPriority.HIGH,
@@ -149,7 +157,8 @@ const largeEventTasks: DefaultTaskTemplate[] = [
   task("Catering- und Technikbedarf spezifizieren", {
     description:
       "Teilnehmerziel, Raumsetup, Cateringzeiten, AV-Technik und Netzwerkbedarf ableiten.",
-    phase: EventPhase.LOCATION_CATERING,
+    phase: EventPhase.PLANNING,
+    workPackage: "LOCATION_CATERING",
     defaultResponsibleRole: UserRole.TEAM_MEMBER,
     defaultReviewerRole: null,
     priority: TaskPriority.MEDIUM,
@@ -160,7 +169,8 @@ const largeEventTasks: DefaultTaskTemplate[] = [
   task("Speaker und Partner final bestätigen", {
     description:
       "Zusagen, Rollen, Logos, Bios, Beitragsformate und Fristen verbindlich dokumentieren.",
-    phase: EventPhase.SPEAKERS_PARTNERS,
+    phase: EventPhase.PLANNING,
+    workPackage: "LEGACY_SPEAKERS_PARTNERS",
     defaultResponsibleRole: UserRole.EVENT_LEAD,
     defaultReviewerRole: UserRole.ADMIN,
     priority: TaskPriority.HIGH,
@@ -171,10 +181,11 @@ const largeEventTasks: DefaultTaskTemplate[] = [
   task("Einladungskampagne starten", {
     description:
       "Einladung über Newsletter, Website, LinkedIn und Partnerkanäle veröffentlichen.",
-    phase: EventPhase.COMMUNICATION,
+    phase: EventPhase.PLANNING,
+    workPackage: "COMMUNICATION",
     defaultResponsibleRole: UserRole.COMMUNICATION,
     defaultReviewerRole: UserRole.EVENT_LEAD,
-    priority: TaskPriority.CRITICAL,
+    priority: TaskPriority.HIGH,
     offsetDays: -60,
     approvalRequired: true,
     isCritical: true,
@@ -182,7 +193,8 @@ const largeEventTasks: DefaultTaskTemplate[] = [
   task("Programm und Ablaufplan finalisieren", {
     description:
       "Agenda, Übergänge, Moderation, Pausen und Verantwortlichkeiten final abstimmen.",
-    phase: EventPhase.MATERIAL_PRESENTATION,
+    phase: EventPhase.PLANNING,
+    workPackage: "TECHNOLOGY_MATERIAL",
     defaultResponsibleRole: UserRole.EVENT_LEAD,
     defaultReviewerRole: UserRole.ADMIN,
     priority: TaskPriority.HIGH,
@@ -193,7 +205,8 @@ const largeEventTasks: DefaultTaskTemplate[] = [
   task("Anmeldestand und Zielgruppenerreichung prüfen", {
     description:
       "Anmeldungen, Zielgruppenmix und Nachsteuerungsbedarf bewerten.",
-    phase: EventPhase.PARTICIPANT_MANAGEMENT,
+    phase: EventPhase.PLANNING,
+    workPackage: "PARTICIPANT_MANAGEMENT",
     defaultResponsibleRole: UserRole.EVENT_LEAD,
     defaultReviewerRole: UserRole.COMMUNICATION,
     priority: TaskPriority.HIGH,
@@ -204,7 +217,7 @@ const largeEventTasks: DefaultTaskTemplate[] = [
   task("Run-of-Show und Vor-Ort-Rollen erstellen", {
     description:
       "Minutenplan, Rollen, Eskalationswege, Check-in und Speaker-Betreuung ausarbeiten.",
-    phase: EventPhase.EVENT_DAY,
+    phase: EventPhase.EXECUTION,
     defaultResponsibleRole: UserRole.EVENT_LEAD,
     defaultReviewerRole: UserRole.ADMIN,
     priority: TaskPriority.HIGH,
@@ -215,7 +228,8 @@ const largeEventTasks: DefaultTaskTemplate[] = [
   task("Präsentationen und Materialien einsammeln", {
     description:
       "Slides, Handouts, Logos, Namensschilder und Beschilderung zentral bereitstellen.",
-    phase: EventPhase.MATERIAL_PRESENTATION,
+    phase: EventPhase.PLANNING,
+    workPackage: "TECHNOLOGY_MATERIAL",
     defaultResponsibleRole: UserRole.TEAM_MEMBER,
     defaultReviewerRole: null,
     priority: TaskPriority.MEDIUM,
@@ -226,7 +240,8 @@ const largeEventTasks: DefaultTaskTemplate[] = [
   task("Finale Reminder-Kommunikation versenden", {
     description:
       "Angemeldete Personen informieren und relevante Kontakte erneut aktivieren.",
-    phase: EventPhase.COMMUNICATION,
+    phase: EventPhase.PLANNING,
+    workPackage: "COMMUNICATION",
     defaultResponsibleRole: UserRole.COMMUNICATION,
     defaultReviewerRole: null,
     priority: TaskPriority.MEDIUM,
@@ -237,10 +252,11 @@ const largeEventTasks: DefaultTaskTemplate[] = [
   task("Technikcheck mit Location durchführen", {
     description:
       "Ton, Bild, Präsentationsrechner, Adapter, Licht, WLAN und Aufnahmebedarf testen.",
-    phase: EventPhase.TECHNOLOGY,
+    phase: EventPhase.PLANNING,
+    workPackage: "TECHNOLOGY_MATERIAL",
     defaultResponsibleRole: UserRole.TEAM_MEMBER,
     defaultReviewerRole: UserRole.EVENT_LEAD,
-    priority: TaskPriority.CRITICAL,
+    priority: TaskPriority.HIGH,
     offsetDays: -7,
     approvalRequired: false,
     isCritical: true,
@@ -248,7 +264,8 @@ const largeEventTasks: DefaultTaskTemplate[] = [
   task("Teilnehmerliste und Briefing finalisieren", {
     description:
       "Check-in-Liste, Cateringzahl, Teambriefing und Notfallkontakte final bereitstellen.",
-    phase: EventPhase.PARTICIPANT_MANAGEMENT,
+    phase: EventPhase.PLANNING,
+    workPackage: "PARTICIPANT_MANAGEMENT",
     defaultResponsibleRole: UserRole.TEAM_MEMBER,
     defaultReviewerRole: UserRole.EVENT_LEAD,
     priority: TaskPriority.HIGH,
@@ -259,10 +276,10 @@ const largeEventTasks: DefaultTaskTemplate[] = [
   task("Event vor Ort steuern", {
     description:
       "Check-in, Ablauf, Zeitmanagement, Speaker-Betreuung und Problemlösung koordinieren.",
-    phase: EventPhase.EVENT_DAY,
+    phase: EventPhase.EXECUTION,
     defaultResponsibleRole: UserRole.EVENT_LEAD,
     defaultReviewerRole: null,
-    priority: TaskPriority.CRITICAL,
+    priority: TaskPriority.HIGH,
     offsetDays: 0,
     approvalRequired: false,
     isCritical: true,
@@ -281,7 +298,7 @@ const largeEventTasks: DefaultTaskTemplate[] = [
   task("Auswertung und Debrief durchführen", {
     description:
       "Kennzahlen, Feedback, Learnings und Folgeaktivitäten gemeinsam bewerten.",
-    phase: EventPhase.EVALUATION,
+    phase: EventPhase.FOLLOW_UP,
     defaultResponsibleRole: UserRole.EVENT_LEAD,
     defaultReviewerRole: UserRole.ADMIN,
     priority: TaskPriority.HIGH,
@@ -306,7 +323,8 @@ const inPersonWorkingGroupTasks: DefaultTaskTemplate[] = [
   task("Raum und Grundsetup sichern", {
     description:
       "Raum, Bestuhlung, Erreichbarkeit und Verfügbarkeit für die Fachgruppe klären.",
-    phase: EventPhase.LOCATION_CATERING,
+    phase: EventPhase.PLANNING,
+    workPackage: "LOCATION_CATERING",
     defaultResponsibleRole: UserRole.TEAM_MEMBER,
     defaultReviewerRole: UserRole.EVENT_LEAD,
     priority: TaskPriority.HIGH,
@@ -317,7 +335,8 @@ const inPersonWorkingGroupTasks: DefaultTaskTemplate[] = [
   task("Impulse und Moderation festlegen", {
     description:
       "Inputs, Diskussionslogik, Moderation und mögliche Praxisbeiträge planen.",
-    phase: EventPhase.SPEAKERS_PARTNERS,
+    phase: EventPhase.PLANNING,
+    workPackage: "PROGRAM",
     defaultResponsibleRole: UserRole.EVENT_LEAD,
     defaultReviewerRole: null,
     priority: TaskPriority.HIGH,
@@ -328,7 +347,8 @@ const inPersonWorkingGroupTasks: DefaultTaskTemplate[] = [
   task("Einladung und Anmeldeseite vorbereiten", {
     description:
       "Einladungstext, Nutzenargument, Verteiler und Anmeldung erstellen.",
-    phase: EventPhase.COMMUNICATION,
+    phase: EventPhase.PLANNING,
+    workPackage: "COMMUNICATION",
     defaultResponsibleRole: UserRole.COMMUNICATION,
     defaultReviewerRole: UserRole.EVENT_LEAD,
     priority: TaskPriority.HIGH,
@@ -339,10 +359,11 @@ const inPersonWorkingGroupTasks: DefaultTaskTemplate[] = [
   task("Einladung versenden", {
     description:
       "Einladung an Fachgruppenverteiler, Partner und relevante Kontakte senden.",
-    phase: EventPhase.COMMUNICATION,
+    phase: EventPhase.PLANNING,
+    workPackage: "COMMUNICATION",
     defaultResponsibleRole: UserRole.COMMUNICATION,
     defaultReviewerRole: null,
-    priority: TaskPriority.CRITICAL,
+    priority: TaskPriority.HIGH,
     offsetDays: -35,
     approvalRequired: false,
     isCritical: true,
@@ -350,7 +371,8 @@ const inPersonWorkingGroupTasks: DefaultTaskTemplate[] = [
   task("Cateringbedarf klären", {
     description:
       "Teilnehmerziel, Getränke, Snacks und besondere Bedarfe mit Location abstimmen.",
-    phase: EventPhase.LOCATION_CATERING,
+    phase: EventPhase.PLANNING,
+    workPackage: "LOCATION_CATERING",
     defaultResponsibleRole: UserRole.TEAM_MEMBER,
     defaultReviewerRole: null,
     priority: TaskPriority.MEDIUM,
@@ -361,7 +383,8 @@ const inPersonWorkingGroupTasks: DefaultTaskTemplate[] = [
   task("Agenda und Arbeitsmaterial finalisieren", {
     description:
       "Agenda, Moderationsfragen, Präsentation und Arbeitsmaterial vorbereiten.",
-    phase: EventPhase.MATERIAL_PRESENTATION,
+    phase: EventPhase.PLANNING,
+    workPackage: "TECHNOLOGY_MATERIAL",
     defaultResponsibleRole: UserRole.EVENT_LEAD,
     defaultReviewerRole: UserRole.ADMIN,
     priority: TaskPriority.HIGH,
@@ -372,7 +395,8 @@ const inPersonWorkingGroupTasks: DefaultTaskTemplate[] = [
   task("Reminder versenden und Anmeldestand prüfen", {
     description:
       "Teilnehmerstand prüfen, gezielt nachfassen und Reminder verschicken.",
-    phase: EventPhase.PARTICIPANT_MANAGEMENT,
+    phase: EventPhase.PLANNING,
+    workPackage: "PARTICIPANT_MANAGEMENT",
     defaultResponsibleRole: UserRole.COMMUNICATION,
     defaultReviewerRole: null,
     priority: TaskPriority.MEDIUM,
@@ -383,7 +407,8 @@ const inPersonWorkingGroupTasks: DefaultTaskTemplate[] = [
   task("Technik und Raum vor Ort testen", {
     description:
       "Beamer, Ton, WLAN, Adapter, Raumlayout und Empfangssituation prüfen.",
-    phase: EventPhase.TECHNOLOGY,
+    phase: EventPhase.PLANNING,
+    workPackage: "TECHNOLOGY_MATERIAL",
     defaultResponsibleRole: UserRole.TEAM_MEMBER,
     defaultReviewerRole: UserRole.EVENT_LEAD,
     priority: TaskPriority.HIGH,
@@ -394,7 +419,7 @@ const inPersonWorkingGroupTasks: DefaultTaskTemplate[] = [
   task("Teilnehmerliste und Rollen finalisieren", {
     description:
       "Teilnehmerliste, Empfang, Moderation, Fotodoku und Ansprechpartner festlegen.",
-    phase: EventPhase.EVENT_DAY,
+    phase: EventPhase.EXECUTION,
     defaultResponsibleRole: UserRole.EVENT_LEAD,
     defaultReviewerRole: null,
     priority: TaskPriority.HIGH,
@@ -405,10 +430,10 @@ const inPersonWorkingGroupTasks: DefaultTaskTemplate[] = [
   task("Fachgruppenveranstaltung durchführen", {
     description:
       "Ablauf moderieren, Diskussion steuern und Ergebnisse sichern.",
-    phase: EventPhase.EVENT_DAY,
+    phase: EventPhase.EXECUTION,
     defaultResponsibleRole: UserRole.EVENT_LEAD,
     defaultReviewerRole: null,
-    priority: TaskPriority.CRITICAL,
+    priority: TaskPriority.HIGH,
     offsetDays: 0,
     approvalRequired: false,
     isCritical: true,
@@ -427,7 +452,7 @@ const inPersonWorkingGroupTasks: DefaultTaskTemplate[] = [
   task("Learnings dokumentieren", {
     description:
       "Teilnehmerfeedback, fachliche Erkenntnisse und nächste Schritte festhalten.",
-    phase: EventPhase.EVALUATION,
+    phase: EventPhase.FOLLOW_UP,
     defaultResponsibleRole: UserRole.EVENT_LEAD,
     defaultReviewerRole: null,
     priority: TaskPriority.MEDIUM,
@@ -452,10 +477,11 @@ const virtualWorkingGroupTasks: DefaultTaskTemplate[] = [
   task("Videoplattform und Zugangskonzept klären", {
     description:
       "Tool, Linklogik, Warteraum, Datenschutz, Rechte und technische Betreuung festlegen.",
-    phase: EventPhase.TECHNOLOGY,
+    phase: EventPhase.PLANNING,
+    workPackage: "TECHNOLOGY_MATERIAL",
     defaultResponsibleRole: UserRole.TEAM_MEMBER,
     defaultReviewerRole: UserRole.EVENT_LEAD,
-    priority: TaskPriority.CRITICAL,
+    priority: TaskPriority.HIGH,
     offsetDays: -38,
     approvalRequired: false,
     isCritical: true,
@@ -463,7 +489,8 @@ const virtualWorkingGroupTasks: DefaultTaskTemplate[] = [
   task("Impulse und Moderation bestätigen", {
     description:
       "Speaker, Moderation, Interaktionselemente und Zeitfenster verbindlich festlegen.",
-    phase: EventPhase.SPEAKERS_PARTNERS,
+    phase: EventPhase.PLANNING,
+    workPackage: "PROGRAM",
     defaultResponsibleRole: UserRole.EVENT_LEAD,
     defaultReviewerRole: null,
     priority: TaskPriority.HIGH,
@@ -474,7 +501,8 @@ const virtualWorkingGroupTasks: DefaultTaskTemplate[] = [
   task("Einladung und Registrierung vorbereiten", {
     description:
       "Einladung, Registrierungslink, Kalendereintrag und Teilnahmehinweise erstellen.",
-    phase: EventPhase.COMMUNICATION,
+    phase: EventPhase.PLANNING,
+    workPackage: "COMMUNICATION",
     defaultResponsibleRole: UserRole.COMMUNICATION,
     defaultReviewerRole: UserRole.EVENT_LEAD,
     priority: TaskPriority.HIGH,
@@ -485,10 +513,11 @@ const virtualWorkingGroupTasks: DefaultTaskTemplate[] = [
   task("Einladung versenden", {
     description:
       "Einladung über Fachgruppenverteiler und passende Partnerkanäle versenden.",
-    phase: EventPhase.COMMUNICATION,
+    phase: EventPhase.PLANNING,
+    workPackage: "COMMUNICATION",
     defaultResponsibleRole: UserRole.COMMUNICATION,
     defaultReviewerRole: null,
-    priority: TaskPriority.CRITICAL,
+    priority: TaskPriority.HIGH,
     offsetDays: -28,
     approvalRequired: false,
     isCritical: true,
@@ -496,7 +525,8 @@ const virtualWorkingGroupTasks: DefaultTaskTemplate[] = [
   task("Virtuelle Agenda und Moderationsleitfaden erstellen", {
     description:
       "Ablauf, Chat-/Q&A-Regeln, Breakouts, Übergänge und Backup-Plan vorbereiten.",
-    phase: EventPhase.MATERIAL_PRESENTATION,
+    phase: EventPhase.PLANNING,
+    workPackage: "TECHNOLOGY_MATERIAL",
     defaultResponsibleRole: UserRole.EVENT_LEAD,
     defaultReviewerRole: UserRole.ADMIN,
     priority: TaskPriority.HIGH,
@@ -507,7 +537,8 @@ const virtualWorkingGroupTasks: DefaultTaskTemplate[] = [
   task("Reminder mit Teilnahmelink versenden", {
     description:
       "Registrierte und relevante Kontakte mit Nutzenargument und Zugangslink erinnern.",
-    phase: EventPhase.COMMUNICATION,
+    phase: EventPhase.PLANNING,
+    workPackage: "COMMUNICATION",
     defaultResponsibleRole: UserRole.COMMUNICATION,
     defaultReviewerRole: null,
     priority: TaskPriority.MEDIUM,
@@ -518,10 +549,11 @@ const virtualWorkingGroupTasks: DefaultTaskTemplate[] = [
   task("Technikprobe mit Speaker durchführen", {
     description:
       "Audio, Kamera, Bildschirmfreigabe, Rollen, Aufzeichnung und Backup-Kanal testen.",
-    phase: EventPhase.TECHNOLOGY,
+    phase: EventPhase.PLANNING,
+    workPackage: "TECHNOLOGY_MATERIAL",
     defaultResponsibleRole: UserRole.TEAM_MEMBER,
     defaultReviewerRole: UserRole.EVENT_LEAD,
-    priority: TaskPriority.CRITICAL,
+    priority: TaskPriority.HIGH,
     offsetDays: -7,
     approvalRequired: false,
     isCritical: true,
@@ -529,7 +561,8 @@ const virtualWorkingGroupTasks: DefaultTaskTemplate[] = [
   task("Teilnehmerliste und Zugangsmail finalisieren", {
     description:
       "Registrierte Personen, Zugangslink, Kalendereintrag und Supportkontakt prüfen.",
-    phase: EventPhase.PARTICIPANT_MANAGEMENT,
+    phase: EventPhase.PLANNING,
+    workPackage: "PARTICIPANT_MANAGEMENT",
     defaultResponsibleRole: UserRole.COMMUNICATION,
     defaultReviewerRole: null,
     priority: TaskPriority.HIGH,
@@ -540,7 +573,8 @@ const virtualWorkingGroupTasks: DefaultTaskTemplate[] = [
   task("Finalen Plattformcheck durchführen", {
     description:
       "Meetingraum, Rechte, Präsentation, Aufzeichnung und Co-Host-Rollen final testen.",
-    phase: EventPhase.TECHNOLOGY,
+    phase: EventPhase.PLANNING,
+    workPackage: "TECHNOLOGY_MATERIAL",
     defaultResponsibleRole: UserRole.TEAM_MEMBER,
     defaultReviewerRole: UserRole.EVENT_LEAD,
     priority: TaskPriority.HIGH,
@@ -551,10 +585,10 @@ const virtualWorkingGroupTasks: DefaultTaskTemplate[] = [
   task("Virtuelle Fachgruppe durchführen", {
     description:
       "Meeting öffnen, technische Betreuung sicherstellen, Moderation begleiten und Ergebnisse sichern.",
-    phase: EventPhase.EVENT_DAY,
+    phase: EventPhase.EXECUTION,
     defaultResponsibleRole: UserRole.EVENT_LEAD,
     defaultReviewerRole: null,
-    priority: TaskPriority.CRITICAL,
+    priority: TaskPriority.HIGH,
     offsetDays: 0,
     approvalRequired: false,
     isCritical: true,
@@ -573,7 +607,7 @@ const virtualWorkingGroupTasks: DefaultTaskTemplate[] = [
   task("Virtuelles Format auswerten", {
     description:
       "Teilnahme, Interaktion, Feedback und Verbesserungen für nächste virtuelle Termine dokumentieren.",
-    phase: EventPhase.EVALUATION,
+    phase: EventPhase.FOLLOW_UP,
     defaultResponsibleRole: UserRole.EVENT_LEAD,
     defaultReviewerRole: null,
     priority: TaskPriority.MEDIUM,
@@ -583,24 +617,48 @@ const virtualWorkingGroupTasks: DefaultTaskTemplate[] = [
   }),
 ];
 
+function withConceptApproval(
+  tasks: DefaultTaskTemplate[],
+): DefaultTaskTemplate[] {
+  const firstPlanningOffset = Math.min(
+    ...tasks
+      .filter((item) => item.phase === EventPhase.PLANNING)
+      .map((item) => item.offsetDays),
+  );
+  return [
+    ...tasks,
+    task("Konzept im Vier-Augen-Prinzip freigeben", {
+      phase: EventPhase.CONCEPTION,
+      description:
+        "Konzept, Ziele und geplanten Ablauf durch eine zweite Person prüfen und freigeben.",
+      defaultResponsibleRole: UserRole.EVENT_LEAD,
+      defaultReviewerRole: UserRole.ADMIN,
+      priority: TaskPriority.HIGH,
+      offsetDays: firstPlanningOffset - 1,
+      approvalRequired: true,
+      isCritical: true,
+    }),
+  ];
+}
+
 export const defaultEventTemplates: DefaultEventTemplate[] = [
   {
     name: "Große Veranstaltung",
     description:
       "Umfangreiche DIWISH-Veranstaltung mit sechs Monaten Vorlauf, Partnern, Kommunikation, Location, Technik und Nachbereitung.",
-    tasks: largeEventTasks,
+    tasks: withConceptApproval(largeEventTasks),
   },
   {
     name: "Fachgruppenveranstaltung (Präsenz)",
     description:
       "Kompakter Präsenztermin für eine Fachgruppe mit acht Wochen Vorlauf, Raum, Catering, Materialien und Follow-up.",
-    tasks: inPersonWorkingGroupTasks,
+    tasks: withConceptApproval(inPersonWorkingGroupTasks),
   },
   {
     name: "Fachgruppenveranstaltung (virtuell)",
     description:
       "Virtuelle Fachgruppenveranstaltung mit sechs Wochen Vorlauf, Plattformcheck, Zugangslogik, Moderation und Follow-up.",
-    tasks: virtualWorkingGroupTasks,
+    tasks: withConceptApproval(virtualWorkingGroupTasks),
   },
 ];
 

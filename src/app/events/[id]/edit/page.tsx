@@ -50,10 +50,12 @@ function DeleteEventPanel({
   eventId,
   eventTitle,
   message,
+  open,
 }: {
   eventId: string;
   eventTitle: string;
   message: string | null;
+  open: boolean;
 }) {
   return (
     <Card className="border-red-200">
@@ -74,7 +76,10 @@ function DeleteEventPanel({
             {message}
           </div>
         ) : null}
-        <details className="rounded-xl border border-red-200 bg-red-50/60 p-4">
+        <details
+          open={open}
+          className="rounded-xl border border-red-200 bg-red-50/60 p-4"
+        >
           <summary className="cursor-pointer text-sm font-bold text-red-800">
             Löschformular öffnen
           </summary>
@@ -173,11 +178,15 @@ export default async function EditEventPage({
         templates={[]}
         users={users}
       />
-      <div className="mt-8">
+      <div className="mt-8 scroll-mt-6" id="event-loeschen">
         <DeleteEventPanel
           eventId={event.id}
           eventTitle={event.title}
           message={getDeleteMessage(query)}
+          open={
+            firstValue(query.section) === "delete" ||
+            Boolean(getDeleteMessage(query))
+          }
         />
       </div>
     </>

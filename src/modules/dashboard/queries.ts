@@ -17,6 +17,7 @@ type DashboardQueryTask = {
   id: string;
   isCritical: boolean;
   phase: EventPhase;
+  workPackage: string | null;
   priority: TaskPriority;
   responsibleUser: {
     id: string;
@@ -26,6 +27,9 @@ type DashboardQueryTask = {
 };
 
 type DashboardQueryEvent = {
+  totalTasks: number;
+  completedTasks: number;
+  overdueTasks: number;
   eventDate: string;
   id: string;
   location: string | null;
@@ -44,7 +48,7 @@ type DashboardQueryRow = {
   users: DashboardQueryUser[];
 };
 
-export async function getDashboardData({
+export function getDashboardQuery({
   nextSevenDays,
   selectedResponsibleUserId,
   selectedUnassigned,
@@ -55,13 +59,12 @@ export async function getDashboardData({
   selectedUnassigned: boolean;
   today: Date;
 }) {
-  const db = getDb();
   const responsibleCondition = selectedUnassigned
     ? Prisma.sql`AND t."responsibleUserId" IS NULL`
     : selectedResponsibleUserId
       ? Prisma.sql`AND t."responsibleUserId" = ${selectedResponsibleUserId}`
       : Prisma.empty;
-  const rows = await db.$queryRaw<DashboardQueryRow[]>(Prisma.sql`
+  return Prisma.sql`
     SELECT
       (
         SELECT COUNT(*)::int
@@ -75,12 +78,13 @@ export async function getDashboardData({
       ) AS "activeEvents",
       COALESCE(
         (
-          SELECT json_agg(task_rows ORDER BY task_rows."dueDate" ASC, task_rows.priority DESC, task_rows.title ASC)
+          SELECT json_agg(task_rows ORDER BY task_rows."dueDate" ASC, CASE task_rows.priority WHEN 'HIGH' THEN 3 WHEN 'MEDIUM' THEN 2 ELSE 1 END DESC, task_rows.title ASC)
           FROM (
             SELECT
               t.id,
               t.title,
               t.phase::text AS phase,
+              t."workPackage",
               t.priority::text AS priority,
               t."dueDate",
               t."isCritical",
@@ -110,15 +114,14 @@ export async function getDashboardData({
         (
           SELECT json_agg(event_rows ORDER BY event_rows."eventDate" ASC)
           FROM (
-            SELECT e.id, e.title, e.location, e."eventDate"
+            SELECT e.id, e.title, e.location, e."eventDate",
+              (SELECT COUNT(*)::int FROM "EventTask" t WHERE t."eventId" = e.id) AS "totalTasks",
+              (SELECT COUNT(*)::int FROM "EventTask" t WHERE t."eventId" = e.id AND t.status::text IN ('COMPLETED', 'CANCELLED')) AS "completedTasks",
+              (SELECT COUNT(*)::int FROM "EventTask" t WHERE t."eventId" = e.id AND t.status::text NOT IN ('COMPLETED', 'CANCELLED') AND t."dueDate" < ${today}) AS "overdueTasks"
             FROM "Event" e
-            WHERE e."eventDate" >= ${today}
-              AND e.status::text NOT IN (${Prisma.join([
-                EventStatus.CANCELLED,
-                EventStatus.ARCHIVED,
-              ])})
+            WHERE e.status::text IN (${Prisma.join([EventStatus.DRAFT, EventStatus.PLANNING, EventStatus.EXECUTION, EventStatus.FOLLOW_UP])})
             ORDER BY e."eventDate" ASC
-            LIMIT 5
+            LIMIT 8
           ) event_rows
         ),
         '[]'::json
@@ -134,7 +137,15 @@ export async function getDashboardData({
         ),
         '[]'::json
       ) AS users
-  `);
+  `;
+}
+
+export async function getDashboardData(
+  options: Parameters<typeof getDashboardQuery>[0],
+) {
+  const rows = await getDb().$queryRaw<DashboardQueryRow[]>(
+    getDashboardQuery(options),
+  );
   const row = rows[0] ?? {
     activeEvents: 0,
     dashboardTasks: [],
@@ -154,6 +165,10 @@ export async function getDashboardData({
     })),
     upcomingEvents: row.upcomingEvents.map((event) => ({
       ...event,
+      progress:
+        event.totalTasks === 0
+          ? 0
+          : Math.round((event.completedTasks / event.totalTasks) * 100),
       eventDate: new Date(event.eventDate),
     })),
     users: row.users,
