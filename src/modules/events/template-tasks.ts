@@ -1,6 +1,6 @@
 import {
   EventPhase,
-  TaskPriority,
+  type TaskPriority,
   TaskStatus,
   UserRole,
 } from "@/generated/prisma/enums";
@@ -12,6 +12,7 @@ export type TemplateTaskSource = {
   title: string;
   description: string | null;
   phase: EventPhase;
+  workPackage?: string | null;
   defaultResponsibleRole: UserRole;
   defaultReviewerRole: UserRole | null;
   priority: TaskPriority;
@@ -24,6 +25,7 @@ export type EventTaskTemplateSource = {
   title: string;
   description: string | null;
   phase: EventPhase;
+  workPackage?: string | null;
   responsibleUser: { role: UserRole } | null;
   reviewerUser: { role: UserRole } | null;
   priority: TaskPriority;
@@ -110,12 +112,13 @@ export function createTaskTemplatesFromEventTasks(
     title: task.title,
     description: task.description,
     phase: task.phase,
+    workPackage: task.workPackage ?? null,
     defaultResponsibleRole: task.responsibleUser?.role ?? UserRole.EVENT_LEAD,
     defaultReviewerRole: task.reviewerUser?.role ?? null,
     priority: task.priority,
     offsetDays: getTemplateOffsetDays(task, eventDate),
     approvalRequired: task.approvalRequired,
-    isCritical: task.isCritical || task.priority === TaskPriority.CRITICAL,
+    isCritical: task.isCritical,
   }));
 }
 
@@ -146,6 +149,7 @@ export function createEventTasksFromTemplate(
       title: template.title,
       description: template.description,
       phase: template.phase,
+      workPackage: template.workPackage ?? null,
       responsibleUserId,
       reviewerUserId,
       status: TaskStatus.OPEN,

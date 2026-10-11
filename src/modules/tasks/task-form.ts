@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { workPackageOptions } from "@/modules/tasks/work-packages";
 
 import { EventPhase, TaskPriority, TaskStatus } from "@/generated/prisma/enums";
 
@@ -24,6 +25,7 @@ export const taskFormSchema = z
     phase: z.enum(EventPhase, {
       error: "Bitte wähle eine Phase.",
     }),
+    workPackage: z.union([z.enum(workPackageOptions), z.literal("")]),
     responsibleUserId: optionalId,
     reviewerUserId: optionalId,
     status: z.enum(TaskStatus, {
@@ -73,6 +75,7 @@ export type TaskFormValues = {
   title: string;
   description: string;
   phase: EventPhase;
+  workPackage: string;
   responsibleUserId: string;
   reviewerUserId: string;
   status: TaskStatus;
@@ -96,6 +99,7 @@ export function getEmptyTaskFormValues(eventId: string): TaskFormValues {
     title: "",
     description: "",
     phase: EventPhase.CONCEPTION,
+    workPackage: "",
     responsibleUserId: "",
     reviewerUserId: "",
     status: TaskStatus.OPEN,
@@ -119,6 +123,7 @@ export function getTaskFormValues(formData: FormData): TaskFormValues {
     title: getString(formData, "title"),
     description: getString(formData, "description"),
     phase: getString(formData, "phase") as EventPhase,
+    workPackage: getString(formData, "workPackage"),
     responsibleUserId: getString(formData, "responsibleUserId"),
     reviewerUserId: getString(formData, "reviewerUserId"),
     status: getString(formData, "status") as TaskStatus,
@@ -146,11 +151,5 @@ export function optionalTaskValue(value: string) {
 
 export const preparationEventPhases = [
   EventPhase.CONCEPTION,
-  EventPhase.FOUR_EYES_REVIEW,
-  EventPhase.LOCATION_CATERING,
-  EventPhase.SPEAKERS_PARTNERS,
-  EventPhase.COMMUNICATION,
-  EventPhase.PARTICIPANT_MANAGEMENT,
-  EventPhase.MATERIAL_PRESENTATION,
-  EventPhase.TECHNOLOGY,
+  EventPhase.PLANNING,
 ] as const;

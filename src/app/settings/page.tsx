@@ -324,6 +324,26 @@ export default async function SettingsPage({
         title="Einstellungen"
       />
 
+      <nav
+        aria-label="Einstellungsbereiche"
+        className="mb-5 flex flex-wrap gap-2"
+      >
+        {[
+          ["arbeitsbereich", "Arbeitsbereich"],
+          ["team-rollen", "Team und Rollen"],
+          ["vorlagen", "Vorlagen"],
+          ["benachrichtigungen", "Benachrichtigungen"],
+        ].map(([id, label]) => (
+          <Link
+            key={id}
+            href={`#${id}`}
+            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            {label}
+          </Link>
+        ))}
+      </nav>
+
       {message ? (
         <div
           className={`mb-5 rounded-xl border px-4 py-3 text-sm font-semibold ${
@@ -347,7 +367,7 @@ export default async function SettingsPage({
       ) : null}
 
       <div className="space-y-6">
-        <Card>
+        <Card id="arbeitsbereich" className="scroll-mt-6">
           <CardHeader
             description="Grunddaten für Exporte, E-Mails und spätere Integrationen."
             title="Arbeitsbereich"
@@ -441,14 +461,18 @@ export default async function SettingsPage({
           </div>
         </Card>
 
-        {webVitals ? <WebVitalsCard data={webVitals} /> : null}
-
-        <Card>
+        <Card id="team-rollen" className="scroll-mt-6">
           <CardHeader
             description="Aktuelle Nutzer und Rollen im System."
             title="Team und Rollen"
           />
           <div className="space-y-4 p-5">
+            <p className="text-sm text-slate-600">
+              Admins verwalten Team und Einstellungen. Event Leads verwalten
+              Events und Aufgaben. Teammitglieder und Kommunikation bearbeiten
+              eigene Aufgaben; Kommunikation zusätzlich den Kommunikationsplan.
+              Gastzugriff ist im aktuellen Stand nicht freigegeben.
+            </p>
             <div className="overflow-x-auto rounded-xl border border-slate-200">
               <table className="w-full min-w-[860px] text-left text-sm">
                 <thead className="bg-slate-50 text-xs font-semibold tracking-wide text-slate-500 uppercase">
@@ -595,7 +619,7 @@ export default async function SettingsPage({
           </div>
         </Card>
 
-        <Card>
+        <Card id="vorlagen" className="scroll-mt-6">
           <CardHeader
             description="Übersicht der Eventvorlagen. Die Bearbeitung erfolgt bewusst auf separaten Detailseiten."
             title="Eventvorlagen"
@@ -686,11 +710,18 @@ export default async function SettingsPage({
           </div>
         </Card>
 
-        <Card>
+        <Card id="benachrichtigungen" className="scroll-mt-6">
           <CardHeader
             description="Interne Hinweise und tägliche E-Mail-Erinnerungen für fällige Aufgaben steuern."
             title="Benachrichtigungen"
           />
+          <p className="px-5 pt-4 text-sm leading-6 text-slate-600">
+            Die Regeln erzeugen interne Hinweise über „Benachrichtigungen jetzt
+            erzeugen“. Der tägliche E-Mail-Lauf erinnert an heute fällige
+            Aufgaben, wenn „Am Fälligkeitstag“ aktiv und der Versand
+            eingerichtet ist. Die übrigen Regeln versenden aktuell keine
+            E-Mails.
+          </p>
           <div className="space-y-4 p-5">
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               <SummaryItem
@@ -701,9 +732,11 @@ export default async function SettingsPage({
                 label="E-Mail-Versand"
                 value={
                   emailDeliveryConfigured ? (
-                    <StatusBadge color="green">Konfiguriert</StatusBadge>
+                    <StatusBadge color="green">
+                      Zugang und Absender hinterlegt
+                    </StatusBadge>
                   ) : (
-                    <StatusBadge color="red">Nicht konfiguriert</StatusBadge>
+                    <StatusBadge color="red">Einrichtung fehlt</StatusBadge>
                   )
                 }
               />
@@ -789,6 +822,12 @@ export default async function SettingsPage({
           Zurück zum Dashboard
         </Link>
       </div>
+
+      {webVitals ? (
+        <div className="mt-6">
+          <WebVitalsCard data={webVitals} />
+        </div>
+      ) : null}
     </>
   );
 }

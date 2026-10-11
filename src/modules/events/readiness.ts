@@ -14,6 +14,7 @@ export type ReadinessEvent = {
 export type ReadinessTask = {
   title: string;
   phase: EventPhase;
+  workPackage?: string | null;
   status: TaskStatus;
   isCritical: boolean;
   approvalRequired: boolean;
@@ -47,11 +48,9 @@ function hasValue(value: string | null) {
 }
 
 function isCompleted(task: ReadinessTask) {
-  return task.status === TaskStatus.COMPLETED;
-}
-
-function activeTasks(tasks: ReadinessTask[]) {
-  return tasks.filter((task) => task.status !== TaskStatus.CANCELLED);
+  return (
+    task.status === TaskStatus.COMPLETED || task.status === TaskStatus.CANCELLED
+  );
 }
 
 function completionArea({
@@ -78,8 +77,8 @@ function completionArea({
       tasks.length === 0
         ? "Keine relevanten Aufgaben angelegt."
         : complete
-          ? "Alle relevanten Aufgaben sind erledigt."
-          : `${remaining} von ${tasks.length} relevanten Aufgaben sind noch nicht erledigt.`,
+          ? "Alle relevanten Aufgaben sind abgeschlossen."
+          : `${remaining} von ${tasks.length} relevanten Aufgaben sind noch nicht abgeschlossen.`,
   };
 }
 
@@ -108,8 +107,8 @@ function completionAreaFromCounts({
       total === 0
         ? "Keine relevanten Aufgaben angelegt."
         : complete
-          ? "Alle relevanten Aufgaben sind erledigt."
-          : `${remaining} von ${total} relevanten Aufgaben sind noch nicht erledigt.`,
+          ? "Alle relevanten Aufgaben sind abgeschlossen."
+          : `${remaining} von ${total} relevanten Aufgaben sind noch nicht abgeschlossen.`,
   };
 }
 
@@ -140,7 +139,7 @@ export function calculateReadinessScore(
   event: ReadinessEvent,
   tasks: ReadinessTask[],
 ) {
-  const relevantTasks = activeTasks(tasks);
+  const relevantTasks = tasks;
   const missingSetupFields = [
     ["Titel", event.title],
     ["Eventdatum", event.eventDate],
@@ -172,10 +171,7 @@ export function calculateReadinessScore(
     label: "Kritische Konzeptaufgaben",
     maxPoints: 15,
     tasks: relevantTasks.filter(
-      (task) =>
-        task.isCritical &&
-        (task.phase === EventPhase.CONCEPTION ||
-          task.phase === EventPhase.FOUR_EYES_REVIEW),
+      (task) => task.isCritical && task.phase === EventPhase.CONCEPTION,
     ),
   });
 
@@ -185,7 +181,7 @@ export function calculateReadinessScore(
     maxPoints: 15,
     tasks: relevantTasks.filter(
       (task) =>
-        task.phase === EventPhase.COMMUNICATION &&
+        task.workPackage === "COMMUNICATION" &&
         (task.isCritical || task.approvalRequired),
     ),
   });
@@ -196,8 +192,8 @@ export function calculateReadinessScore(
     maxPoints: 20,
     tasks: relevantTasks.filter(
       (task) =>
-        task.phase === EventPhase.LOCATION_CATERING ||
-        task.phase === EventPhase.TECHNOLOGY,
+        task.workPackage === "LOCATION_CATERING" ||
+        task.workPackage === "TECHNOLOGY_MATERIAL",
     ),
   });
 
@@ -209,7 +205,7 @@ export function calculateReadinessScore(
       const title = normalizeTitle(task.title);
 
       return (
-        task.phase === EventPhase.EVENT_DAY &&
+        task.phase === EventPhase.EXECUTION &&
         title.includes("rollen") &&
         (title.includes("verteil") || title.includes("zuweis"))
       );
@@ -221,17 +217,15 @@ export function calculateReadinessScore(
     label: "Teilnehmermanagement gepflegt",
     maxPoints: 10,
     tasks: relevantTasks.filter(
-      (task) => task.phase === EventPhase.PARTICIPANT_MANAGEMENT,
+      (task) => task.workPackage === "PARTICIPANT_MANAGEMENT",
     ),
   });
 
   const followUpTasks = relevantTasks.filter(
-    (task) =>
-      task.phase === EventPhase.FOLLOW_UP ||
-      task.phase === EventPhase.EVALUATION,
+    (task) => task.phase === EventPhase.FOLLOW_UP,
   );
   const unpreparedFollowUpTasks = followUpTasks.filter(
-    (task) => !task.responsibleUserId || !task.dueDate,
+    (task) => !isCompleted(task) && (!task.responsibleUserId || !task.dueDate),
   );
   const followUpComplete =
     followUpTasks.length > 0 && unpreparedFollowUpTasks.length === 0;

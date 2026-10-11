@@ -68,6 +68,7 @@ const cockpitTaskSelect = {
   title: true,
   description: true,
   phase: true,
+  workPackage: true,
   status: true,
   priority: true,
   dueDate: true,
@@ -250,8 +251,8 @@ export async function getEventListData(filters: EventListFilters, page = 1) {
         e.format,
         u.id AS "eventLeadId",
         u.name AS "eventLeadName",
-        COUNT(t.id) FILTER (WHERE t.status::text <> ${TaskStatus.CANCELLED})::int AS "totalTasks",
-        COUNT(t.id) FILTER (WHERE t.status::text = ${TaskStatus.COMPLETED})::int AS "completedTasks",
+        COUNT(t.id)::int AS "totalTasks",
+        COUNT(t.id) FILTER (WHERE t.status::text IN (${Prisma.join([...CLOSED_TASK_STATUSES])}))::int AS "completedTasks",
         COUNT(t.id) FILTER (WHERE t.status::text ${openStatusFilter})::int AS "openTasks",
         COUNT(t.id) FILTER (
           WHERE t.status::text ${openStatusFilter}
@@ -325,8 +326,8 @@ export async function getEventCockpitOverview(id: string) {
   const [metricsRows, taskSummaryRows, readinessRows] = await Promise.all([
     db.$queryRaw<TaskMetricsRow[]>(Prisma.sql`
       SELECT
-        COUNT(*) FILTER (WHERE t.status::text <> ${TaskStatus.CANCELLED})::int AS "totalTasks",
-        COUNT(*) FILTER (WHERE t.status::text = ${TaskStatus.COMPLETED})::int AS "completedTasks",
+        COUNT(*)::int AS "totalTasks",
+        COUNT(*) FILTER (WHERE t.status::text IN (${Prisma.join([...CLOSED_TASK_STATUSES])}))::int AS "completedTasks",
         COUNT(*) FILTER (WHERE t.status::text ${openStatusFilter})::int AS "openTasks",
         COUNT(*) FILTER (
           WHERE t.status::text ${openStatusFilter}
@@ -354,51 +355,32 @@ export async function getEventCockpitOverview(id: string) {
     db.$queryRaw<ReadinessStats[]>(Prisma.sql`
       SELECT
         COUNT(*) FILTER (
-          WHERE t.status::text <> ${TaskStatus.CANCELLED}
-            AND t."isCritical" = true
-            AND t.phase::text IN (${Prisma.join([
-              EventPhase.CONCEPTION,
-              EventPhase.FOUR_EYES_REVIEW,
-            ])})
+          WHERE t."isCritical" = true
+            AND t.phase::text IN (${Prisma.join([EventPhase.CONCEPTION])})
         )::int AS "conceptTotal",
         COUNT(*) FILTER (
-          WHERE t.status::text <> ${TaskStatus.CANCELLED}
-            AND t.status::text <> ${TaskStatus.COMPLETED}
+          WHERE t.status::text NOT IN (${Prisma.join([...CLOSED_TASK_STATUSES])})
             AND t."isCritical" = true
-            AND t.phase::text IN (${Prisma.join([
-              EventPhase.CONCEPTION,
-              EventPhase.FOUR_EYES_REVIEW,
-            ])})
+            AND t.phase::text IN (${Prisma.join([EventPhase.CONCEPTION])})
         )::int AS "conceptRemaining",
         COUNT(*) FILTER (
-          WHERE t.status::text <> ${TaskStatus.CANCELLED}
-            AND t.phase::text = ${EventPhase.COMMUNICATION}
+          WHERE t."workPackage" = 'COMMUNICATION'
             AND (t."isCritical" = true OR t."approvalRequired" = true)
         )::int AS "communicationTotal",
         COUNT(*) FILTER (
-          WHERE t.status::text <> ${TaskStatus.CANCELLED}
-            AND t.status::text <> ${TaskStatus.COMPLETED}
-            AND t.phase::text = ${EventPhase.COMMUNICATION}
+          WHERE t.status::text NOT IN (${Prisma.join([...CLOSED_TASK_STATUSES])})
+            AND t."workPackage" = 'COMMUNICATION'
             AND (t."isCritical" = true OR t."approvalRequired" = true)
         )::int AS "communicationRemaining",
         COUNT(*) FILTER (
-          WHERE t.status::text <> ${TaskStatus.CANCELLED}
-            AND t.phase::text IN (${Prisma.join([
-              EventPhase.LOCATION_CATERING,
-              EventPhase.TECHNOLOGY,
-            ])})
+          WHERE t."workPackage" IN ('LOCATION_CATERING', 'TECHNOLOGY_MATERIAL')
         )::int AS "operationsTotal",
         COUNT(*) FILTER (
-          WHERE t.status::text <> ${TaskStatus.CANCELLED}
-            AND t.status::text <> ${TaskStatus.COMPLETED}
-            AND t.phase::text IN (${Prisma.join([
-              EventPhase.LOCATION_CATERING,
-              EventPhase.TECHNOLOGY,
-            ])})
+          WHERE t.status::text NOT IN (${Prisma.join([...CLOSED_TASK_STATUSES])})
+            AND t."workPackage" IN ('LOCATION_CATERING', 'TECHNOLOGY_MATERIAL')
         )::int AS "operationsRemaining",
         COUNT(*) FILTER (
-          WHERE t.status::text <> ${TaskStatus.CANCELLED}
-            AND t.phase::text = ${EventPhase.EVENT_DAY}
+          WHERE t.phase::text = ${EventPhase.EXECUTION}
             AND LOWER(t.title) LIKE '%rollen%'
             AND (
               LOWER(t.title) LIKE '%verteil%'
@@ -406,9 +388,8 @@ export async function getEventCockpitOverview(id: string) {
             )
         )::int AS "onsiteRolesTotal",
         COUNT(*) FILTER (
-          WHERE t.status::text <> ${TaskStatus.CANCELLED}
-            AND t.status::text <> ${TaskStatus.COMPLETED}
-            AND t.phase::text = ${EventPhase.EVENT_DAY}
+          WHERE t.status::text NOT IN (${Prisma.join([...CLOSED_TASK_STATUSES])})
+            AND t.phase::text = ${EventPhase.EXECUTION}
             AND LOWER(t.title) LIKE '%rollen%'
             AND (
               LOWER(t.title) LIKE '%verteil%'
@@ -416,27 +397,18 @@ export async function getEventCockpitOverview(id: string) {
             )
         )::int AS "onsiteRolesRemaining",
         COUNT(*) FILTER (
-          WHERE t.status::text <> ${TaskStatus.CANCELLED}
-            AND t.phase::text = ${EventPhase.PARTICIPANT_MANAGEMENT}
+          WHERE t."workPackage" = 'PARTICIPANT_MANAGEMENT'
         )::int AS "participantsTotal",
         COUNT(*) FILTER (
-          WHERE t.status::text <> ${TaskStatus.CANCELLED}
-            AND t.status::text <> ${TaskStatus.COMPLETED}
-            AND t.phase::text = ${EventPhase.PARTICIPANT_MANAGEMENT}
+          WHERE t.status::text NOT IN (${Prisma.join([...CLOSED_TASK_STATUSES])})
+            AND t."workPackage" = 'PARTICIPANT_MANAGEMENT'
         )::int AS "participantsRemaining",
         COUNT(*) FILTER (
-          WHERE t.status::text <> ${TaskStatus.CANCELLED}
-            AND t.phase::text IN (${Prisma.join([
-              EventPhase.FOLLOW_UP,
-              EventPhase.EVALUATION,
-            ])})
+          WHERE t.phase::text IN (${Prisma.join([EventPhase.FOLLOW_UP])})
         )::int AS "followUpTotal",
         COUNT(*) FILTER (
-          WHERE t.status::text <> ${TaskStatus.CANCELLED}
-            AND t.phase::text IN (${Prisma.join([
-              EventPhase.FOLLOW_UP,
-              EventPhase.EVALUATION,
-            ])})
+          WHERE t.phase::text IN (${Prisma.join([EventPhase.FOLLOW_UP])})
+            AND t.status::text NOT IN (${Prisma.join([...CLOSED_TASK_STATUSES])})
             AND (t."responsibleUserId" IS NULL OR t."dueDate" IS NULL)
         )::int AS "followUpUnprepared"
       FROM "EventTask" t
@@ -594,8 +566,8 @@ export async function getEventCockpit(id: string) {
     await Promise.all([
       db.$queryRaw<TaskMetricsRow[]>(Prisma.sql`
         SELECT
-          COUNT(*) FILTER (WHERE t.status::text <> ${TaskStatus.CANCELLED})::int AS "totalTasks",
-          COUNT(*) FILTER (WHERE t.status::text = ${TaskStatus.COMPLETED})::int AS "completedTasks",
+          COUNT(*)::int AS "totalTasks",
+          COUNT(*) FILTER (WHERE t.status::text IN (${Prisma.join([...CLOSED_TASK_STATUSES])}))::int AS "completedTasks",
           COUNT(*) FILTER (WHERE t.status::text ${openStatusFilter})::int AS "openTasks",
           COUNT(*) FILTER (
             WHERE t.status::text ${openStatusFilter}
@@ -623,51 +595,32 @@ export async function getEventCockpit(id: string) {
       db.$queryRaw<ReadinessStats[]>(Prisma.sql`
         SELECT
           COUNT(*) FILTER (
-            WHERE t.status::text <> ${TaskStatus.CANCELLED}
-              AND t."isCritical" = true
-              AND t.phase::text IN (${Prisma.join([
-                EventPhase.CONCEPTION,
-                EventPhase.FOUR_EYES_REVIEW,
-              ])})
+            WHERE t."isCritical" = true
+              AND t.phase::text IN (${Prisma.join([EventPhase.CONCEPTION])})
           )::int AS "conceptTotal",
           COUNT(*) FILTER (
-            WHERE t.status::text <> ${TaskStatus.CANCELLED}
-              AND t.status::text <> ${TaskStatus.COMPLETED}
+            WHERE t.status::text NOT IN (${Prisma.join([...CLOSED_TASK_STATUSES])})
               AND t."isCritical" = true
-              AND t.phase::text IN (${Prisma.join([
-                EventPhase.CONCEPTION,
-                EventPhase.FOUR_EYES_REVIEW,
-              ])})
+              AND t.phase::text IN (${Prisma.join([EventPhase.CONCEPTION])})
           )::int AS "conceptRemaining",
           COUNT(*) FILTER (
-            WHERE t.status::text <> ${TaskStatus.CANCELLED}
-              AND t.phase::text = ${EventPhase.COMMUNICATION}
+            WHERE t."workPackage" = 'COMMUNICATION'
               AND (t."isCritical" = true OR t."approvalRequired" = true)
           )::int AS "communicationTotal",
           COUNT(*) FILTER (
-            WHERE t.status::text <> ${TaskStatus.CANCELLED}
-              AND t.status::text <> ${TaskStatus.COMPLETED}
-              AND t.phase::text = ${EventPhase.COMMUNICATION}
+            WHERE t.status::text NOT IN (${Prisma.join([...CLOSED_TASK_STATUSES])})
+              AND t."workPackage" = 'COMMUNICATION'
               AND (t."isCritical" = true OR t."approvalRequired" = true)
           )::int AS "communicationRemaining",
           COUNT(*) FILTER (
-            WHERE t.status::text <> ${TaskStatus.CANCELLED}
-              AND t.phase::text IN (${Prisma.join([
-                EventPhase.LOCATION_CATERING,
-                EventPhase.TECHNOLOGY,
-              ])})
+            WHERE t."workPackage" IN ('LOCATION_CATERING', 'TECHNOLOGY_MATERIAL')
           )::int AS "operationsTotal",
           COUNT(*) FILTER (
-            WHERE t.status::text <> ${TaskStatus.CANCELLED}
-              AND t.status::text <> ${TaskStatus.COMPLETED}
-              AND t.phase::text IN (${Prisma.join([
-                EventPhase.LOCATION_CATERING,
-                EventPhase.TECHNOLOGY,
-              ])})
+            WHERE t.status::text NOT IN (${Prisma.join([...CLOSED_TASK_STATUSES])})
+              AND t."workPackage" IN ('LOCATION_CATERING', 'TECHNOLOGY_MATERIAL')
           )::int AS "operationsRemaining",
           COUNT(*) FILTER (
-            WHERE t.status::text <> ${TaskStatus.CANCELLED}
-              AND t.phase::text = ${EventPhase.EVENT_DAY}
+            WHERE t.phase::text = ${EventPhase.EXECUTION}
               AND LOWER(t.title) LIKE '%rollen%'
               AND (
                 LOWER(t.title) LIKE '%verteil%'
@@ -675,9 +628,8 @@ export async function getEventCockpit(id: string) {
               )
           )::int AS "onsiteRolesTotal",
           COUNT(*) FILTER (
-            WHERE t.status::text <> ${TaskStatus.CANCELLED}
-              AND t.status::text <> ${TaskStatus.COMPLETED}
-              AND t.phase::text = ${EventPhase.EVENT_DAY}
+            WHERE t.status::text NOT IN (${Prisma.join([...CLOSED_TASK_STATUSES])})
+              AND t.phase::text = ${EventPhase.EXECUTION}
               AND LOWER(t.title) LIKE '%rollen%'
               AND (
                 LOWER(t.title) LIKE '%verteil%'
@@ -685,28 +637,19 @@ export async function getEventCockpit(id: string) {
               )
           )::int AS "onsiteRolesRemaining",
           COUNT(*) FILTER (
-            WHERE t.status::text <> ${TaskStatus.CANCELLED}
-              AND t.phase::text = ${EventPhase.PARTICIPANT_MANAGEMENT}
+            WHERE t."workPackage" = 'PARTICIPANT_MANAGEMENT'
           )::int AS "participantsTotal",
           COUNT(*) FILTER (
-            WHERE t.status::text <> ${TaskStatus.CANCELLED}
-              AND t.status::text <> ${TaskStatus.COMPLETED}
-              AND t.phase::text = ${EventPhase.PARTICIPANT_MANAGEMENT}
+            WHERE t.status::text NOT IN (${Prisma.join([...CLOSED_TASK_STATUSES])})
+              AND t."workPackage" = 'PARTICIPANT_MANAGEMENT'
           )::int AS "participantsRemaining",
           COUNT(*) FILTER (
-            WHERE t.status::text <> ${TaskStatus.CANCELLED}
-              AND t.phase::text IN (${Prisma.join([
-                EventPhase.FOLLOW_UP,
-                EventPhase.EVALUATION,
-              ])})
+            WHERE t.phase::text IN (${Prisma.join([EventPhase.FOLLOW_UP])})
           )::int AS "followUpTotal",
           COUNT(*) FILTER (
-            WHERE t.status::text <> ${TaskStatus.CANCELLED}
-              AND t.phase::text IN (${Prisma.join([
-                EventPhase.FOLLOW_UP,
-                EventPhase.EVALUATION,
-              ])})
-              AND (t."responsibleUserId" IS NULL OR t."dueDate" IS NULL)
+            WHERE t.phase::text IN (${Prisma.join([EventPhase.FOLLOW_UP])})
+              AND t.status::text NOT IN (${Prisma.join([...CLOSED_TASK_STATUSES])})
+            AND (t."responsibleUserId" IS NULL OR t."dueDate" IS NULL)
           )::int AS "followUpUnprepared"
         FROM "EventTask" t
         WHERE t."eventId" = ${id}

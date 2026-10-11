@@ -48,11 +48,9 @@ export function calculateTaskMetrics(
   tasks: MetricTask[],
   today = getTodayUtc(),
 ) {
-  const relevantTasks = tasks.filter(
-    (task) => task.status !== TaskStatus.CANCELLED,
-  );
+  const relevantTasks = tasks;
   const completedTasks = relevantTasks.filter(
-    (task) => task.status === TaskStatus.COMPLETED,
+    (task) => !isOpenTask(task),
   ).length;
   const openTasks = tasks.filter(isOpenTask).length;
   const overdueTasks = tasks.filter((task) =>

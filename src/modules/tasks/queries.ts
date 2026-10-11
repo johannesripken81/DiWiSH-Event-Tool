@@ -10,6 +10,8 @@ import { getDb } from "@/lib/db";
 import { CLOSED_TASK_STATUSES, getTodayUtc } from "@/modules/events/metrics";
 import { getCachedUserOptions } from "@/modules/settings/reference-data";
 
+import { getTaskOrderBy, type TaskSort } from "./list-state";
+
 export type TaskDueFilter = "all" | "overdue" | "next7";
 export type TaskOverviewView =
   | "all"
@@ -28,10 +30,12 @@ export type TaskReadinessAreaFilter =
 export type EventTaskFilters = {
   status?: TaskStatus;
   phase?: EventPhase;
+  workPackage?: string;
   responsibleUserId?: string;
   priority?: TaskPriority;
   due: TaskDueFilter;
   criticalOnly: boolean;
+  openOnly?: boolean;
   readinessArea?: TaskReadinessAreaFilter;
 };
 
@@ -86,23 +90,24 @@ function getReadinessAreaFilter(
     case "concept":
       return {
         isCritical: true,
-        phase: { in: [EventPhase.CONCEPTION, EventPhase.FOUR_EYES_REVIEW] },
+        phase: EventPhase.CONCEPTION,
       };
     case "communication":
       return {
-        phase: EventPhase.COMMUNICATION,
+        workPackage: "COMMUNICATION",
         OR: [{ isCritical: true }, { approvalRequired: true }],
       };
     case "operations":
       return {
-        phase: { in: [EventPhase.LOCATION_CATERING, EventPhase.TECHNOLOGY] },
+        phase: EventPhase.PLANNING,
+        workPackage: { in: ["LOCATION_CATERING", "TECHNOLOGY_MATERIAL"] },
       };
     case "onsiteRoles":
-      return { phase: EventPhase.EVENT_DAY };
+      return { phase: EventPhase.EXECUTION };
     case "participants":
-      return { phase: EventPhase.PARTICIPANT_MANAGEMENT };
+      return { workPackage: "PARTICIPANT_MANAGEMENT" };
     case "followUp":
-      return { phase: { in: [EventPhase.FOLLOW_UP, EventPhase.EVALUATION] } };
+      return { phase: EventPhase.FOLLOW_UP };
     case undefined:
       return undefined;
   }
@@ -152,10 +157,7 @@ function getTaskOverviewViewFilter(
           FROM "EventTask" tv
           WHERE tv."eventId" = e.id
             AND tv.status::text ${openStatusFilter}
-            AND tv.phase::text IN (${Prisma.join([
-              EventPhase.FOLLOW_UP,
-              EventPhase.EVALUATION,
-            ])})
+            AND tv.phase::text IN (${Prisma.join([EventPhase.FOLLOW_UP])})
         )
         OR EXISTS (
           SELECT 1
@@ -174,6 +176,7 @@ export async function getEventTaskPlanning(
   eventId: string,
   filters: EventTaskFilters,
   page = 1,
+  sort: TaskSort = { key: "dueDate", direction: "asc" },
 ) {
   await requireEventReadAccess();
   const db = getDb();
@@ -183,6 +186,7 @@ export async function getEventTaskPlanning(
     eventId,
     status: filters.status,
     phase: filters.phase,
+    workPackage: filters.workPackage,
     responsibleUserId: filters.responsibleUserId,
     priority: filters.priority,
     isCritical: filters.criticalOnly ? true : undefined,
@@ -194,6 +198,12 @@ export async function getEventTaskPlanning(
 
   if (filters.due !== "all" && !filters.status) {
     where.status = { notIn: [...CLOSED_TASK_STATUSES] };
+  }
+
+  if (filters.openOnly) {
+    (where.AND as Prisma.EventTaskWhereInput[]).push({
+      status: { notIn: [...CLOSED_TASK_STATUSES] },
+    });
   }
 
   const [event, users, totalTasks, filteredTasks] = await Promise.all([
@@ -224,7 +234,7 @@ export async function getEventTaskPlanning(
         select: { id: true, name: true },
       },
     },
-    orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }, { title: "asc" }],
+    orderBy: getTaskOrderBy(sort),
     skip: (currentPage - 1) * taskPlanningPageSize,
     take: taskPlanningPageSize,
   });
@@ -256,16 +266,14 @@ export async function getTaskOverviewEvents(
     ...CLOSED_TASK_STATUSES,
   ])})`;
   const viewFilter = getTaskOverviewViewFilter(view, today, currentUserId);
-  const whereSql = viewFilter
-    ? Prisma.sql`WHERE ${viewFilter}`
-    : Prisma.empty;
+  const whereSql = viewFilter ? Prisma.sql`WHERE ${viewFilter}` : Prisma.empty;
   const rows = await db.$queryRaw<TaskOverviewEventRow[]>(Prisma.sql`
     SELECT
       e.id,
       e.title,
       e."eventDate",
-      COUNT(t.id) FILTER (WHERE t.status::text <> ${TaskStatus.CANCELLED})::int AS "totalTasks",
-      COUNT(t.id) FILTER (WHERE t.status::text = ${TaskStatus.COMPLETED})::int AS "completedTasks",
+      COUNT(t.id)::int AS "totalTasks",
+      COUNT(t.id) FILTER (WHERE t.status::text IN (${Prisma.join([...CLOSED_TASK_STATUSES])}))::int AS "completedTasks",
       COUNT(t.id) FILTER (WHERE t.status::text ${openStatusFilter})::int AS "openTasks",
       COUNT(t.id) FILTER (
         WHERE t.status::text ${openStatusFilter}
@@ -281,10 +289,7 @@ export async function getTaskOverviewEvents(
         FROM "EventTask" ft
         WHERE ft."eventId" = e.id
           AND ft.status::text ${openStatusFilter}
-          AND ft.phase::text IN (${Prisma.join([
-            EventPhase.FOLLOW_UP,
-            EventPhase.EVALUATION,
-          ])})
+          AND ft.phase::text IN (${Prisma.join([EventPhase.FOLLOW_UP])})
       ) + (
         SELECT COUNT(*)::int
         FROM "EventParticipant" fp

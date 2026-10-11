@@ -10,7 +10,7 @@ import {
   isEventPeriod,
   type EventPeriod,
 } from "@/modules/events/queries";
-import { formatDate } from "@/modules/events/presentation";
+import { formatEventDate } from "@/modules/events/presentation";
 
 export const metadata: Metadata = {
   title: "Events",
@@ -267,7 +267,7 @@ export default async function EventsPage({
                         </Link>
                       </td>
                       <td className="px-4 py-4 font-medium text-slate-700">
-                        {formatDate(event.eventDate)}
+                        {formatEventDate(event.eventDate)}
                       </td>
                       <td className="px-4 py-4 text-slate-600">
                         {event.format ?? "Nicht festgelegt"}
@@ -280,7 +280,9 @@ export default async function EventsPage({
                           <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200">
                             <div
                               className="bg-brand-700 h-full rounded-full"
-                              style={{ width: `${event.metrics.progress}%` }}
+                              style={{
+                                width: `${event.metrics.progress}%`,
+                              }}
                             />
                           </div>
                           <span className="w-10 text-right font-bold text-slate-700">

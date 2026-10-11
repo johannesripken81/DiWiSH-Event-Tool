@@ -13,6 +13,7 @@ import {
 } from "../src/generated/prisma/client";
 import { hashPassword } from "../src/lib/password";
 import { ensureDefaultEventTemplates } from "../src/modules/events/default-templates";
+import { getDistinctReviewerId } from "../src/modules/tasks/assignment";
 import { calculateDueDate } from "../src/modules/tasks/reverse-planning";
 
 const connectionString = process.env.DATABASE_URL_UNPOOLED;
@@ -124,7 +125,7 @@ const taskTemplates: SeedTaskTemplate[] = [
     title: "Konzept im Vier-Augen-Prinzip prüfen",
     description:
       "Konzept, Zielsetzung und geplanten Ablauf unabhängig prüfen und freigeben.",
-    phase: EventPhase.FOUR_EYES_REVIEW,
+    phase: EventPhase.CONCEPTION,
     defaultResponsibleRole: UserRole.ADMIN,
     defaultReviewerRole: UserRole.EVENT_LEAD,
     priority: TaskPriority.HIGH,
@@ -136,10 +137,11 @@ const taskTemplates: SeedTaskTemplate[] = [
     title: "Raum/Location klären",
     description:
       "Verfügbarkeit, Kapazität, Barrierefreiheit und Rahmenbedingungen der Location klären.",
-    phase: EventPhase.LOCATION_CATERING,
+    phase: EventPhase.PLANNING,
+    workPackage: "LOCATION_CATERING",
     defaultResponsibleRole: UserRole.TEAM_MEMBER,
     defaultReviewerRole: null,
-    priority: TaskPriority.CRITICAL,
+    priority: TaskPriority.HIGH,
     offsetDays: -75,
     approvalRequired: false,
     isCritical: true,
@@ -148,7 +150,8 @@ const taskTemplates: SeedTaskTemplate[] = [
     title: "Catering anfragen",
     description:
       "Cateringbedarf ermitteln und ein passendes Angebot einschließlich Optionen anfragen.",
-    phase: EventPhase.LOCATION_CATERING,
+    phase: EventPhase.PLANNING,
+    workPackage: "LOCATION_CATERING",
     defaultResponsibleRole: UserRole.TEAM_MEMBER,
     defaultReviewerRole: null,
     priority: TaskPriority.MEDIUM,
@@ -160,7 +163,8 @@ const taskTemplates: SeedTaskTemplate[] = [
     title: "Location und Catering final bestätigen",
     description:
       "Location und Catering auf Basis der erwarteten Teilnehmerzahl verbindlich bestätigen.",
-    phase: EventPhase.LOCATION_CATERING,
+    phase: EventPhase.PLANNING,
+    workPackage: "LOCATION_CATERING",
     defaultResponsibleRole: UserRole.ADMIN,
     defaultReviewerRole: UserRole.EVENT_LEAD,
     priority: TaskPriority.HIGH,
@@ -172,7 +176,8 @@ const taskTemplates: SeedTaskTemplate[] = [
     title: "Speaker identifizieren",
     description:
       "Geeignete Speaker und Partner passend zu Zielgruppe und Veranstaltungsthema auswählen.",
-    phase: EventPhase.SPEAKERS_PARTNERS,
+    phase: EventPhase.PLANNING,
+    workPackage: "PROGRAM",
     defaultResponsibleRole: UserRole.EVENT_LEAD,
     defaultReviewerRole: null,
     priority: TaskPriority.HIGH,
@@ -184,7 +189,8 @@ const taskTemplates: SeedTaskTemplate[] = [
     title: "Speaker anfragen",
     description:
       "Speaker mit Thema, Format, Termin und organisatorischen Eckdaten anfragen.",
-    phase: EventPhase.SPEAKERS_PARTNERS,
+    phase: EventPhase.PLANNING,
+    workPackage: "PROGRAM",
     defaultResponsibleRole: UserRole.EVENT_LEAD,
     defaultReviewerRole: null,
     priority: TaskPriority.HIGH,
@@ -196,7 +202,8 @@ const taskTemplates: SeedTaskTemplate[] = [
     title: "Speaker und Partner final bestätigen",
     description:
       "Zusagen, Beiträge, Ansprechpartner und Nutzungsrechte verbindlich dokumentieren.",
-    phase: EventPhase.SPEAKERS_PARTNERS,
+    phase: EventPhase.PLANNING,
+    workPackage: "LEGACY_SPEAKERS_PARTNERS",
     defaultResponsibleRole: UserRole.EVENT_LEAD,
     defaultReviewerRole: UserRole.ADMIN,
     priority: TaskPriority.HIGH,
@@ -208,7 +215,8 @@ const taskTemplates: SeedTaskTemplate[] = [
     title: "Einladungstext erstellen",
     description:
       "Einladungstext mit Nutzenversprechen, Agenda, Termin und Handlungsaufforderung erstellen.",
-    phase: EventPhase.COMMUNICATION,
+    phase: EventPhase.PLANNING,
+    workPackage: "COMMUNICATION",
     defaultResponsibleRole: UserRole.COMMUNICATION,
     defaultReviewerRole: UserRole.EVENT_LEAD,
     priority: TaskPriority.HIGH,
@@ -220,7 +228,8 @@ const taskTemplates: SeedTaskTemplate[] = [
     title: "Einladungstext freigeben",
     description:
       "Inhalt, Tonalität, Veranstaltungsdaten und Anmeldelink prüfen und freigeben.",
-    phase: EventPhase.COMMUNICATION,
+    phase: EventPhase.PLANNING,
+    workPackage: "COMMUNICATION",
     defaultResponsibleRole: UserRole.EVENT_LEAD,
     defaultReviewerRole: UserRole.ADMIN,
     priority: TaskPriority.HIGH,
@@ -232,10 +241,11 @@ const taskTemplates: SeedTaskTemplate[] = [
     title: "Einladung versenden",
     description:
       "Freigegebene Einladung an den abgestimmten Verteiler versenden.",
-    phase: EventPhase.COMMUNICATION,
+    phase: EventPhase.PLANNING,
+    workPackage: "COMMUNICATION",
     defaultResponsibleRole: UserRole.COMMUNICATION,
     defaultReviewerRole: null,
-    priority: TaskPriority.CRITICAL,
+    priority: TaskPriority.HIGH,
     offsetDays: -45,
     approvalRequired: false,
     isCritical: true,
@@ -244,7 +254,8 @@ const taskTemplates: SeedTaskTemplate[] = [
     title: "Social-Media-Post veröffentlichen",
     description:
       "Veranstaltung über die vorgesehenen Social-Media-Kanäle veröffentlichen.",
-    phase: EventPhase.COMMUNICATION,
+    phase: EventPhase.PLANNING,
+    workPackage: "COMMUNICATION",
     defaultResponsibleRole: UserRole.COMMUNICATION,
     defaultReviewerRole: null,
     priority: TaskPriority.MEDIUM,
@@ -256,7 +267,8 @@ const taskTemplates: SeedTaskTemplate[] = [
     title: "Reminder versenden",
     description:
       "Angemeldete und relevante noch nicht angemeldete Kontakte gezielt erinnern.",
-    phase: EventPhase.COMMUNICATION,
+    phase: EventPhase.PLANNING,
+    workPackage: "COMMUNICATION",
     defaultResponsibleRole: UserRole.COMMUNICATION,
     defaultReviewerRole: null,
     priority: TaskPriority.MEDIUM,
@@ -268,7 +280,8 @@ const taskTemplates: SeedTaskTemplate[] = [
     title: "Anmeldeseite erstellen und testen",
     description:
       "Anmeldeseite inklusive Pflichtfeldern, Bestätigung und Datenschutzangaben testen.",
-    phase: EventPhase.PARTICIPANT_MANAGEMENT,
+    phase: EventPhase.PLANNING,
+    workPackage: "PARTICIPANT_MANAGEMENT",
     defaultResponsibleRole: UserRole.COMMUNICATION,
     defaultReviewerRole: UserRole.EVENT_LEAD,
     priority: TaskPriority.HIGH,
@@ -280,7 +293,8 @@ const taskTemplates: SeedTaskTemplate[] = [
     title: "Anmeldestand prüfen",
     description:
       "Anmeldungen, Zielgruppenerreichung und mögliche Nachsteuerung bewerten.",
-    phase: EventPhase.PARTICIPANT_MANAGEMENT,
+    phase: EventPhase.PLANNING,
+    workPackage: "PARTICIPANT_MANAGEMENT",
     defaultResponsibleRole: UserRole.TEAM_MEMBER,
     defaultReviewerRole: null,
     priority: TaskPriority.MEDIUM,
@@ -292,7 +306,8 @@ const taskTemplates: SeedTaskTemplate[] = [
     title: "Teilnehmerliste finalisieren",
     description:
       "Teilnehmerliste bereinigen und für Empfang, Catering und Organisation bereitstellen.",
-    phase: EventPhase.PARTICIPANT_MANAGEMENT,
+    phase: EventPhase.PLANNING,
+    workPackage: "PARTICIPANT_MANAGEMENT",
     defaultResponsibleRole: UserRole.TEAM_MEMBER,
     defaultReviewerRole: null,
     priority: TaskPriority.HIGH,
@@ -304,7 +319,8 @@ const taskTemplates: SeedTaskTemplate[] = [
     title: "Agenda und Ablauf finalisieren",
     description:
       "Agenda, Moderationsablauf, Zeitfenster und Übergaben verbindlich abstimmen.",
-    phase: EventPhase.MATERIAL_PRESENTATION,
+    phase: EventPhase.PLANNING,
+    workPackage: "TECHNOLOGY_MATERIAL",
     defaultResponsibleRole: UserRole.EVENT_LEAD,
     defaultReviewerRole: UserRole.ADMIN,
     priority: TaskPriority.HIGH,
@@ -316,7 +332,8 @@ const taskTemplates: SeedTaskTemplate[] = [
     title: "Präsentationen einsammeln und zusammenführen",
     description:
       "Präsentationen einholen, auf Funktionsfähigkeit prüfen und zentral bereitstellen.",
-    phase: EventPhase.MATERIAL_PRESENTATION,
+    phase: EventPhase.PLANNING,
+    workPackage: "TECHNOLOGY_MATERIAL",
     defaultResponsibleRole: UserRole.TEAM_MEMBER,
     defaultReviewerRole: null,
     priority: TaskPriority.HIGH,
@@ -328,7 +345,8 @@ const taskTemplates: SeedTaskTemplate[] = [
     title: "Technikbedarf klären",
     description:
       "Bedarf an Präsentationstechnik, Mikrofonen, Ton, Licht und Netzwerk klären.",
-    phase: EventPhase.TECHNOLOGY,
+    phase: EventPhase.PLANNING,
+    workPackage: "TECHNOLOGY_MATERIAL",
     defaultResponsibleRole: UserRole.TEAM_MEMBER,
     defaultReviewerRole: null,
     priority: TaskPriority.MEDIUM,
@@ -340,7 +358,8 @@ const taskTemplates: SeedTaskTemplate[] = [
     title: "Technikcheck planen",
     description:
       "Verantwortliche, Zeitfenster und Prüfpunkte für den technischen Probelauf festlegen.",
-    phase: EventPhase.TECHNOLOGY,
+    phase: EventPhase.PLANNING,
+    workPackage: "TECHNOLOGY_MATERIAL",
     defaultResponsibleRole: UserRole.TEAM_MEMBER,
     defaultReviewerRole: null,
     priority: TaskPriority.HIGH,
@@ -352,10 +371,11 @@ const taskTemplates: SeedTaskTemplate[] = [
     title: "Präsentation und Mikrofone testen",
     description:
       "Präsentationsrechner, Adapter, Klicker, Ton und Mikrofone vor Ort vollständig testen.",
-    phase: EventPhase.TECHNOLOGY,
+    phase: EventPhase.PLANNING,
+    workPackage: "TECHNOLOGY_MATERIAL",
     defaultResponsibleRole: UserRole.TEAM_MEMBER,
     defaultReviewerRole: UserRole.EVENT_LEAD,
-    priority: TaskPriority.CRITICAL,
+    priority: TaskPriority.HIGH,
     offsetDays: -1,
     approvalRequired: false,
     isCritical: true,
@@ -364,7 +384,7 @@ const taskTemplates: SeedTaskTemplate[] = [
     title: "Vor-Ort-Rollen verteilen",
     description:
       "Empfang, Moderation, Technik, Speaker-Betreuung und Dokumentation verbindlich zuweisen.",
-    phase: EventPhase.EVENT_DAY,
+    phase: EventPhase.EXECUTION,
     defaultResponsibleRole: UserRole.EVENT_LEAD,
     defaultReviewerRole: null,
     priority: TaskPriority.HIGH,
@@ -376,7 +396,7 @@ const taskTemplates: SeedTaskTemplate[] = [
     title: "Materialien und Beschilderung aufbauen",
     description:
       "Namensschilder, Wegweiser, Teilnehmerunterlagen und Raumaufbau fertigstellen.",
-    phase: EventPhase.EVENT_DAY,
+    phase: EventPhase.EXECUTION,
     defaultResponsibleRole: UserRole.TEAM_MEMBER,
     defaultReviewerRole: null,
     priority: TaskPriority.HIGH,
@@ -388,10 +408,10 @@ const taskTemplates: SeedTaskTemplate[] = [
     title: "Begrüßung und Ablauf steuern",
     description:
       "Veranstaltung eröffnen, Zeitplan halten und Übergaben während des Events koordinieren.",
-    phase: EventPhase.EVENT_DAY,
+    phase: EventPhase.EXECUTION,
     defaultResponsibleRole: UserRole.EVENT_LEAD,
     defaultReviewerRole: null,
-    priority: TaskPriority.CRITICAL,
+    priority: TaskPriority.HIGH,
     offsetDays: 0,
     approvalRequired: false,
     isCritical: true,
@@ -424,7 +444,7 @@ const taskTemplates: SeedTaskTemplate[] = [
     title: "Learnings dokumentieren",
     description:
       "Erfahrungen, Kennzahlen, Feedback und Verbesserungsideen strukturiert festhalten.",
-    phase: EventPhase.EVALUATION,
+    phase: EventPhase.FOLLOW_UP,
     defaultResponsibleRole: UserRole.TEAM_MEMBER,
     defaultReviewerRole: null,
     priority: TaskPriority.MEDIUM,
@@ -436,7 +456,7 @@ const taskTemplates: SeedTaskTemplate[] = [
     title: "Debrief durchführen",
     description:
       "Ergebnisse und Learnings im Team besprechen und Folgemaßnahmen vereinbaren.",
-    phase: EventPhase.EVALUATION,
+    phase: EventPhase.FOLLOW_UP,
     defaultResponsibleRole: UserRole.EVENT_LEAD,
     defaultReviewerRole: UserRole.ADMIN,
     priority: TaskPriority.HIGH,
@@ -642,22 +662,28 @@ async function seedDemoEvent(
   });
 
   const createdTasks = await Promise.all(
-    templates.map((template, taskIndex) =>
-      prisma.eventTask.create({
+    templates.map((template, taskIndex) => {
+      const responsibleUserId = getResponsibleUserId(
+        template.defaultResponsibleRole,
+        userRecords,
+        taskIndex,
+      );
+      const reviewerUserId = getDistinctReviewerId(
+        getReviewerUserId(template.defaultReviewerRole, userRecords),
+        responsibleUserId,
+        Object.values(userRecords).filter(
+          (user) => user.role === template.defaultReviewerRole,
+        ),
+      );
+      return prisma.eventTask.create({
         data: {
           eventId: event.id,
           title: template.title,
           description: template.description,
           phase: template.phase,
-          responsibleUserId: getResponsibleUserId(
-            template.defaultResponsibleRole,
-            userRecords,
-            taskIndex,
-          ),
-          reviewerUserId: getReviewerUserId(
-            template.defaultReviewerRole,
-            userRecords,
-          ),
+          workPackage: template.workPackage,
+          responsibleUserId,
+          reviewerUserId,
           status: TaskStatus.OPEN,
           priority: template.priority,
           dueDate: calculateDueDate(eventDate, template.offsetDays),
@@ -665,8 +691,8 @@ async function seedDemoEvent(
           approvalRequired: template.approvalRequired,
           isCritical: template.isCritical,
         },
-      }),
-    ),
+      });
+    }),
   );
 
   const tasksByTitle = new Map(createdTasks.map((task) => [task.title, task]));

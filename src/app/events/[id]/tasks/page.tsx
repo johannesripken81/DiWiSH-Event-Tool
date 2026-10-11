@@ -38,7 +38,22 @@ import {
   type EventTaskFilters,
 } from "@/modules/tasks/queries";
 
+import {
+  getTaskHref,
+  getTaskListHref,
+  getTaskSort,
+  type TaskListQuery,
+  type TaskSort,
+  type TaskSortKey,
+} from "@/modules/tasks/list-state";
+
+import {
+  getWorkPackageLabel,
+  workPackageOptions,
+} from "@/modules/tasks/work-packages";
+
 import { changeTaskStatusAction } from "./actions";
+import { TaskDoneToggle as OptimisticTaskDoneToggle } from "./task-done-toggle";
 
 export const dynamic = "force-dynamic";
 
@@ -133,68 +148,52 @@ function StatusAction({
   );
 }
 
-function TaskDoneToggle({
+function SortHeader({
   eventId,
-  task,
-  canChangeStatus,
+  query,
+  sort,
+  column,
+  children,
 }: {
   eventId: string;
-  task: PlanningTask;
-  canChangeStatus: boolean;
+  query: TaskListQuery;
+  sort: TaskSort;
+  column: TaskSortKey;
+  children: React.ReactNode;
 }) {
-  const isCompleted = task.status === TaskStatus.COMPLETED;
-  const isCancelled = task.status === TaskStatus.CANCELLED;
-  const nextStatus = isCompleted ? TaskStatus.OPEN : TaskStatus.COMPLETED;
-  const label = isCompleted
-    ? "Aufgabe wieder öffnen"
-    : "Aufgabe als erledigt markieren";
-  const checkboxClass = `mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded border text-sm font-bold transition ${
-    isCompleted
-      ? "border-emerald-600 bg-emerald-600 text-white"
-      : isCancelled
-        ? "border-slate-300 bg-slate-100 text-slate-400"
-        : "border-slate-300 bg-white text-transparent hover:border-emerald-500 hover:bg-emerald-50"
-  }`;
-
-  if (!canChangeStatus || isCancelled) {
-    return (
-      <span
-        aria-label={
-          isCompleted
-            ? "Aufgabe ist erledigt"
-            : isCancelled
-              ? "Aufgabe entfällt"
-              : "Status kann nicht geändert werden"
-        }
-        className={checkboxClass}
-        title={
-          isCompleted
-            ? "Erledigt"
-            : isCancelled
-              ? "Entfällt"
-              : "Keine Berechtigung zum Ändern"
-        }
-      >
-        {isCompleted ? "✓" : isCancelled ? "–" : ""}
-      </span>
-    );
-  }
-
+  const active = sort.key === column;
+  const direction = active && sort.direction === "asc" ? "desc" : "asc";
+  const href = getTaskListHref(eventId, {
+    ...query,
+    page: undefined,
+    sort: column,
+    direction,
+  });
   return (
-    <form action={changeTaskStatusAction} className="shrink-0">
-      <input name="eventId" type="hidden" value={eventId} />
-      <input name="taskId" type="hidden" value={task.id} />
-      <input name="status" type="hidden" value={nextStatus} />
-      <PendingSubmitButton
-        ariaLabel={`${label}: ${task.title}`}
-        ariaPressed={isCompleted}
-        className={checkboxClass}
-        pendingLabel="…"
-        title={label}
+    <th
+      className="px-4 py-3"
+      scope="col"
+      aria-sort={
+        active
+          ? sort.direction === "asc"
+            ? "ascending"
+            : "descending"
+          : "none"
+      }
+    >
+      <Link
+        className="hover:text-brand-700 inline-flex items-center gap-1"
+        href={href}
+        title={
+          direction === "asc" ? "Aufsteigend sortieren" : "Absteigend sortieren"
+        }
       >
-        {isCompleted ? "✓" : ""}
-      </PendingSubmitButton>
-    </form>
+        {children}
+        <span aria-hidden="true">
+          {active ? (sort.direction === "asc" ? "↑" : "↓") : "↕"}
+        </span>
+      </Link>
+    </th>
   );
 }
 
@@ -203,25 +202,93 @@ function TaskPlanningTable({
   eventId,
   tasks,
   today,
+  query,
+  sort,
 }: {
   currentUser: CurrentUser;
   eventId: string;
   tasks: PlanningTask[];
   today: Date;
+  query: TaskListQuery;
+  sort: TaskSort;
 }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[1250px] text-left text-sm">
         <thead className="bg-slate-50 text-xs font-semibold tracking-wide text-slate-500 uppercase">
           <tr>
-            <th className="px-5 py-3">Aufgabe</th>
-            <th className="px-4 py-3">Phase</th>
-            <th className="px-4 py-3">Verantwortlich</th>
-            <th className="px-4 py-3">Prüfer/in</th>
-            <th className="px-4 py-3">Status</th>
-            <th className="px-4 py-3">Priorität</th>
-            <th className="px-4 py-3">Fällig am</th>
-            <th className="px-4 py-3">Kritisch</th>
+            <SortHeader
+              eventId={eventId}
+              query={query}
+              sort={sort}
+              column="title"
+            >
+              Aufgabe
+            </SortHeader>
+            <SortHeader
+              eventId={eventId}
+              query={query}
+              sort={sort}
+              column="phase"
+            >
+              Phase
+            </SortHeader>
+            <SortHeader
+              eventId={eventId}
+              query={query}
+              sort={sort}
+              column="workPackage"
+            >
+              Arbeitspaket
+            </SortHeader>
+            <SortHeader
+              eventId={eventId}
+              query={query}
+              sort={sort}
+              column="responsible"
+            >
+              Verantwortlich
+            </SortHeader>
+            <SortHeader
+              eventId={eventId}
+              query={query}
+              sort={sort}
+              column="reviewer"
+            >
+              Prüfer/in
+            </SortHeader>
+            <SortHeader
+              eventId={eventId}
+              query={query}
+              sort={sort}
+              column="status"
+            >
+              Status
+            </SortHeader>
+            <SortHeader
+              eventId={eventId}
+              query={query}
+              sort={sort}
+              column="priority"
+            >
+              Priorität
+            </SortHeader>
+            <SortHeader
+              eventId={eventId}
+              query={query}
+              sort={sort}
+              column="dueDate"
+            >
+              Fällig am
+            </SortHeader>
+            <SortHeader
+              eventId={eventId}
+              query={query}
+              sort={sort}
+              column="isCritical"
+            >
+              Für das Event kritisch
+            </SortHeader>
             <th className="sticky right-0 z-10 bg-slate-50 px-5 py-3 text-right">
               Aktionen
             </th>
@@ -247,25 +314,25 @@ function TaskPlanningTable({
               <tr className={row.row} key={task.id}>
                 <td className="px-5 py-4">
                   <div className="flex items-start gap-3">
-                    <TaskDoneToggle
+                    <OptimisticTaskDoneToggle
                       canChangeStatus={canChangeStatus}
+                      changeStatusAction={changeTaskStatusAction}
                       eventId={eventId}
+                      key={`${task.id}-${task.status}`}
                       task={task}
                     />
                     <div>
-                      {canUpdateTask ? (
-                        <Link
-                          className="text-brand-950 hover:text-brand-700 font-bold"
-                          href={`/events/${eventId}/tasks/${task.id}/edit`}
-                          prefetch={false}
-                        >
-                          {task.title}
-                        </Link>
-                      ) : (
-                        <span className="text-brand-950 font-bold">
-                          {task.title}
-                        </span>
-                      )}
+                      <Link
+                        className="text-brand-950 hover:text-brand-700 font-bold"
+                        href={getTaskHref(
+                          eventId,
+                          task.id,
+                          getTaskListHref(eventId, query),
+                        )}
+                        prefetch={false}
+                      >
+                        {task.title}
+                      </Link>
                       {task.description ? (
                         <p className="mt-1 max-w-xs truncate text-xs text-slate-500">
                           {task.description}
@@ -276,6 +343,9 @@ function TaskPlanningTable({
                 </td>
                 <td className="px-4 py-4 text-slate-700">
                   {getPhaseLabel(task.phase)}
+                </td>
+                <td className="px-4 py-4 text-slate-700">
+                  {getWorkPackageLabel(task.workPackage)}
                 </td>
                 <td className="px-4 py-4 text-slate-700">
                   {task.responsibleUser?.name ?? "Nicht zugewiesen"}
@@ -313,7 +383,12 @@ function TaskPlanningTable({
                     {canUpdateTask ? (
                       <Link
                         className="inline-flex min-h-8 items-center rounded-md border border-slate-300 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                        href={`/events/${eventId}/tasks/${task.id}/edit`}
+                        href={getTaskHref(
+                          eventId,
+                          task.id,
+                          getTaskListHref(eventId, query),
+                          true,
+                        )}
                         prefetch={false}
                       >
                         Details bearbeiten
@@ -376,15 +451,33 @@ export default async function EventTasksPage({
   const filters: EventTaskFilters = {
     status: isTaskStatus(statusValue) ? statusValue : undefined,
     phase: isEventPhase(phaseValue) ? phaseValue : undefined,
+    workPackage: workPackageOptions.includes(
+      firstValue(query.workPackage) as (typeof workPackageOptions)[number],
+    )
+      ? firstValue(query.workPackage)
+      : undefined,
     responsibleUserId: responsibleUserId || undefined,
     priority: isTaskPriority(priorityValue) ? priorityValue : undefined,
     due: isTaskDueFilter(dueValue) ? dueValue : "all",
     criticalOnly: firstValue(query.critical) === "true",
+    openOnly: firstValue(query.openOnly) === "true",
     readinessArea: isTaskReadinessAreaFilter(readinessAreaValue)
       ? readinessAreaValue
       : undefined,
   };
-  const planning = await getEventTaskPlanning(id, filters, getPage(query.page));
+  const sort = getTaskSort(firstValue(query.sort), firstValue(query.direction));
+  const planning = await getEventTaskPlanning(
+    id,
+    filters,
+    getPage(query.page),
+    sort,
+  );
+  const listQuery = {
+    ...query,
+    page: String(planning.pagination.currentPage),
+    sort: sort.key,
+    direction: sort.direction,
+  };
   const currentUser = await getCurrentUser();
 
   if (!planning.event) {
@@ -399,10 +492,12 @@ export default async function EventTasksPage({
   const hasFilters = Boolean(
     filters.status ||
     filters.phase ||
+    filters.workPackage ||
     filters.responsibleUserId ||
     filters.priority ||
     filters.due !== "all" ||
     filters.criticalOnly ||
+    filters.openOnly ||
     filters.readinessArea,
   );
   const shiftedFollowingTasks = Number.parseInt(
@@ -412,12 +507,8 @@ export default async function EventTasksPage({
   const shiftedFollowingTaskCount = Number.isFinite(shiftedFollowingTasks)
     ? shiftedFollowingTasks
     : 0;
-  const activeTasks = planning.tasks.filter(
-    (task) => task.status !== TaskStatus.COMPLETED,
-  );
-  const completedTasks = planning.tasks.filter(
-    (task) => task.status === TaskStatus.COMPLETED,
-  );
+  const activeTasks = planning.tasks.filter((task) => isOpenTask(task));
+  const completedTasks = planning.tasks.filter((task) => !isOpenTask(task));
 
   return (
     <>
@@ -446,6 +537,8 @@ export default async function EventTasksPage({
           className="grid gap-4 p-4 md:grid-cols-2 xl:grid-cols-7"
           method="get"
         >
+          <input name="sort" type="hidden" value={sort.key} />
+          <input name="direction" type="hidden" value={sort.direction} />
           {filters.readinessArea ? (
             <input
               name="readinessArea"
@@ -485,6 +578,24 @@ export default async function EventTasksPage({
               {eventPhaseOptions.map((phase) => (
                 <option key={phase} value={phase}>
                   {getPhaseLabel(phase)}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-bold text-slate-600">
+              Arbeitspaket
+            </span>
+            <select
+              className="min-h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"
+              name="workPackage"
+              defaultValue={filters.workPackage ?? ""}
+            >
+              <option value="">Alle Arbeitspakete</option>
+              {workPackageOptions.map((value) => (
+                <option key={value} value={value}>
+                  {getWorkPackageLabel(value)}
                 </option>
               ))}
             </select>
@@ -541,6 +652,16 @@ export default async function EventTasksPage({
             </select>
           </label>
 
+          <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+            <input
+              type="checkbox"
+              name="openOnly"
+              value="true"
+              defaultChecked={filters.openOnly}
+              className="size-4"
+            />
+            Nur offene Aufgaben
+          </label>
           <label className="flex min-h-10 items-center gap-2 self-end rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700">
             <input
               defaultChecked={filters.criticalOnly}
@@ -633,159 +754,18 @@ export default async function EventTasksPage({
           />
         ) : activeTasks.length === 0 ? (
           <EmptyState
-            description="In dieser Ansicht sind alle gefundenen Aufgaben bereits erledigt. Du findest sie im eingeklappten Bereich darunter."
+            description="In dieser Ansicht sind alle gefundenen Aufgaben bereits abgeschlossen (erledigt oder entfällt). Du findest sie im eingeklappten Bereich darunter."
             title="Keine offenen Aufgaben in dieser Ansicht"
           />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1250px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs font-semibold tracking-wide text-slate-500 uppercase">
-                <tr>
-                  <th className="px-5 py-3">Aufgabe</th>
-                  <th className="px-4 py-3">Phase</th>
-                  <th className="px-4 py-3">Verantwortlich</th>
-                  <th className="px-4 py-3">Prüfer/in</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Priorität</th>
-                  <th className="px-4 py-3">Fällig am</th>
-                  <th className="px-4 py-3">Kritisch</th>
-                  <th className="sticky right-0 z-10 bg-slate-50 px-5 py-3 text-right">
-                    Aktionen
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {activeTasks.map((task) => {
-                  const status = getTaskStatusPresentation(task.status);
-                  const priority = getTaskPriorityPresentation(task.priority);
-                  const row = getTaskRowPresentation(task, planning.today);
-                  const canUpdateTask = hasPermission(
-                    currentUser,
-                    Permission.UPDATE_TASK,
-                    { responsibleUserId: task.responsibleUserId },
-                  );
-                  const canChangeStatus = hasPermission(
-                    currentUser,
-                    Permission.CHANGE_TASK_STATUS,
-                    { responsibleUserId: task.responsibleUserId },
-                  );
-
-                  return (
-                    <tr className={row.row} key={task.id}>
-                      <td className="px-5 py-4">
-                        <div className="flex items-start gap-3">
-                          <TaskDoneToggle
-                            canChangeStatus={canChangeStatus}
-                            eventId={event.id}
-                            task={task}
-                          />
-                          <div>
-                            {canUpdateTask ? (
-                              <Link
-                                className="text-brand-950 hover:text-brand-700 font-bold"
-                                href={`/events/${event.id}/tasks/${task.id}/edit`}
-                                prefetch={false}
-                              >
-                                {task.title}
-                              </Link>
-                            ) : (
-                              <span className="text-brand-950 font-bold">
-                                {task.title}
-                              </span>
-                            )}
-                            {task.description ? (
-                              <p className="mt-1 max-w-xs truncate text-xs text-slate-500">
-                                {task.description}
-                              </p>
-                            ) : null}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 text-slate-700">
-                        {getPhaseLabel(task.phase)}
-                      </td>
-                      <td className="px-4 py-4 text-slate-700">
-                        {task.responsibleUser?.name ?? "Nicht zugewiesen"}
-                      </td>
-                      <td className="px-4 py-4 text-slate-700">
-                        {task.reviewerUser?.name ?? "Nicht zugewiesen"}
-                      </td>
-                      <td className="px-4 py-4">
-                        <StatusBadge color={status.color}>
-                          {status.label}
-                        </StatusBadge>
-                      </td>
-                      <td className="px-4 py-4">
-                        <StatusBadge color={priority.color}>
-                          {priority.label}
-                        </StatusBadge>
-                      </td>
-                      <td className={`px-4 py-4 font-semibold ${row.due}`}>
-                        {formatDate(task.dueDate)}
-                        {row.hint ? (
-                          <span className="mt-1 block text-xs">{row.hint}</span>
-                        ) : null}
-                      </td>
-                      <td className="px-4 py-4">
-                        <span
-                          className={
-                            task.isCritical
-                              ? "font-bold text-red-700"
-                              : "text-slate-500"
-                          }
-                        >
-                          {task.isCritical ? "Ja" : "Nein"}
-                        </span>
-                      </td>
-                      <td className="sticky right-0 bg-white px-5 py-4 shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.35)]">
-                        <div className="flex justify-end gap-2">
-                          {canUpdateTask ? (
-                            <Link
-                              className="inline-flex min-h-8 items-center rounded-md border border-slate-300 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                              href={`/events/${event.id}/tasks/${task.id}/edit`}
-                              prefetch={false}
-                            >
-                              Details bearbeiten
-                            </Link>
-                          ) : null}
-                          {canChangeStatus &&
-                          task.status === TaskStatus.OPEN ? (
-                            <StatusAction
-                              className="bg-blue-100 text-blue-800 hover:bg-blue-200"
-                              eventId={event.id}
-                              status={TaskStatus.IN_PROGRESS}
-                              taskId={task.id}
-                            >
-                              In Arbeit
-                            </StatusAction>
-                          ) : null}
-                          {canChangeStatus && isOpenTask(task) ? (
-                            <StatusAction
-                              className="bg-slate-200 text-slate-700 hover:bg-slate-300"
-                              eventId={event.id}
-                              status={TaskStatus.CANCELLED}
-                              taskId={task.id}
-                            >
-                              Entfällt
-                            </StatusAction>
-                          ) : canChangeStatus ? (
-                            <StatusAction
-                              className="bg-blue-100 text-blue-800 hover:bg-blue-200"
-                              eventId={event.id}
-                              status={TaskStatus.OPEN}
-                              taskId={task.id}
-                            >
-                              Wieder öffnen
-                            </StatusAction>
-                          ) : null}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <TaskPlanningTable
+            currentUser={currentUser}
+            eventId={event.id}
+            tasks={activeTasks}
+            today={planning.today}
+            query={listQuery}
+            sort={sort}
+          />
         )}
       </Card>
 
@@ -798,7 +778,7 @@ export default async function EventTasksPage({
       {completedTasks.length > 0 ? (
         <details className="shadow-card mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white">
           <summary className="flex cursor-pointer items-center justify-between gap-3 px-5 py-4 text-sm font-bold text-slate-800 hover:bg-slate-50">
-            <span>Erledigte Aufgaben ({completedTasks.length})</span>
+            <span>Abgeschlossene Aufgaben ({completedTasks.length})</span>
             <span className="text-xs font-semibold text-slate-500">
               einklappen/ausklappen
             </span>
@@ -806,6 +786,8 @@ export default async function EventTasksPage({
           <TaskPlanningTable
             currentUser={currentUser}
             eventId={event.id}
+            query={listQuery}
+            sort={sort}
             tasks={completedTasks}
             today={planning.today}
           />

@@ -20,6 +20,26 @@ function task(
 }
 
 describe("Aufgabenstatus nach Fälligkeit", () => {
+  it("zählt extern übernommene Aufgaben als abgeschlossen", () => {
+    const metrics = calculateTaskMetrics(
+      [
+        task(null, TaskStatus.COMPLETED),
+        task(null, TaskStatus.COMPLETED),
+        task(null, TaskStatus.COMPLETED),
+        task(null, TaskStatus.CANCELLED),
+        task(null, TaskStatus.OPEN),
+      ],
+      today,
+    );
+    assert.equal(metrics.progress, 80);
+    assert.equal(metrics.completedTasks, 4);
+    assert.equal(metrics.totalTasks, 5);
+    assert.equal(
+      calculateTaskMetrics([task(null, TaskStatus.CANCELLED)], today).progress,
+      100,
+    );
+    assert.equal(calculateTaskMetrics([], today).progress, 0);
+  });
   it("markiert nur offene Aufgaben vor dem heutigen Datum als überfällig", () => {
     assert.equal(isOverdueTask(task("2026-06-13"), today), true);
     assert.equal(isOverdueTask(task("2026-06-14"), today), false);
@@ -56,12 +76,12 @@ describe("Aufgabenstatus nach Fälligkeit", () => {
     );
 
     assert.deepEqual(metrics, {
-      totalTasks: 3,
-      completedTasks: 1,
+      totalTasks: 4,
+      completedTasks: 2,
       openTasks: 2,
       overdueTasks: 1,
       criticalOpenTasks: 1,
-      progress: 33,
+      progress: 50,
     });
   });
 });

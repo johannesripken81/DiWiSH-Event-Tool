@@ -79,16 +79,23 @@ function SubmitButton({ mode }: { mode: "create" | "edit" }) {
   );
 }
 
+import {
+  getWorkPackageLabel,
+  workPackageOptions,
+} from "@/modules/tasks/work-packages";
+
 export function TaskForm({
   canManageAssignment = true,
   initialValues,
   mode,
+  returnTo,
   users,
 }: {
   canManageAssignment?: boolean;
   initialValues: TaskFormValues;
   mode: "create" | "edit";
   users: UserOption[];
+  returnTo?: string;
 }) {
   const action = mode === "create" ? createTaskAction : updateTaskAction;
   const [state, formAction] = useActionState(action, {
@@ -103,6 +110,15 @@ export function TaskForm({
   const reviewerUser = users.find(
     (user) => user.id === state.values.reviewerUserId,
   );
+  const [selectedResponsibleId, setSelectedResponsibleId] = useState(
+    state.values.responsibleUserId,
+  );
+  const [selectedReviewerId, setSelectedReviewerId] = useState(
+    state.values.reviewerUserId,
+  );
+  const assignmentConflict = Boolean(
+    selectedResponsibleId && selectedResponsibleId === selectedReviewerId,
+  );
   const originalDueDate = initialValues.dueDate;
   const [currentDueDate, setCurrentDueDate] = useState(state.values.dueDate);
   const shouldAskForFollowingShift =
@@ -116,6 +132,11 @@ export function TaskForm({
     <form action={formAction} noValidate>
       <input name="eventId" type="hidden" value={state.values.eventId} />
       <input name="taskId" type="hidden" value={state.values.taskId} />
+      <input
+        name="returnTo"
+        type="hidden"
+        value={returnTo ?? `/events/${state.values.eventId}/tasks`}
+      />
 
       {state.formError ? (
         <div
@@ -189,6 +210,37 @@ export function TaskForm({
 
             {canManageAssignment ? (
               <label className="block">
+                <FieldLabel>Arbeitspaket</FieldLabel>
+                <select
+                  className={inputClass}
+                  name="workPackage"
+                  defaultValue={state.values.workPackage}
+                >
+                  <option value="">Nicht zugeordnet</option>
+                  {workPackageOptions.map((value) => (
+                    <option key={value} value={value}>
+                      {getWorkPackageLabel(value)}
+                    </option>
+                  ))}
+                </select>
+                <FieldError name="workPackage" state={state} />
+              </label>
+            ) : (
+              <div>
+                <FieldLabel>Arbeitspaket</FieldLabel>
+                <input
+                  type="hidden"
+                  name="workPackage"
+                  value={state.values.workPackage}
+                />
+                <p className="text-sm text-slate-700">
+                  {getWorkPackageLabel(state.values.workPackage)}
+                </p>
+              </div>
+            )}
+
+            {canManageAssignment ? (
+              <label className="block">
                 <FieldLabel>Fällig am</FieldLabel>
                 <input
                   className={inputClass}
@@ -256,6 +308,9 @@ export function TaskForm({
                   className={inputClass}
                   defaultValue={state.values.responsibleUserId}
                   name="responsibleUserId"
+                  onChange={(event) =>
+                    setSelectedResponsibleId(event.target.value)
+                  }
                 >
                   <option value="">Nicht zugewiesen</option>
                   {users.map((user) => (
@@ -287,15 +342,39 @@ export function TaskForm({
                   className={inputClass}
                   defaultValue={state.values.reviewerUserId}
                   name="reviewerUserId"
+                  onChange={(event) =>
+                    setSelectedReviewerId(event.target.value)
+                  }
                 >
                   <option value="">Nicht zugewiesen</option>
                   {users.map((user) => (
-                    <option key={user.id} value={user.id}>
+                    <option
+                      key={user.id}
+                      value={user.id}
+                      disabled={
+                        user.id === selectedResponsibleId &&
+                        user.id !== selectedReviewerId
+                      }
+                    >
                       {user.name} · {roleLabels[user.role]}
                     </option>
                   ))}
                 </select>
                 <FieldError name="reviewerUserId" state={state} />
+                {assignmentConflict ? (
+                  <p
+                    role="alert"
+                    className="mt-1.5 text-xs font-bold text-red-700"
+                  >
+                    Bitte eine andere Person für die Prüfung wählen.
+                    Selbstprüfung ist nicht zulässig.
+                  </p>
+                ) : (
+                  <p className="mt-1.5 text-xs text-slate-500">
+                    Verantwortliche Person und Prüfer/in müssen unterschiedlich
+                    sein.
+                  </p>
+                )}
               </label>
             ) : (
               <div>
@@ -313,6 +392,10 @@ export function TaskForm({
 
             <label className="block">
               <FieldLabel required>Status</FieldLabel>
+              <p className="mb-2 text-xs text-slate-500">
+                „Entfällt“ zählt als abgeschlossen, beispielsweise bei Übernahme
+                durch einen Kooperationspartner.
+              </p>
               <select
                 className={inputClass}
                 defaultValue={state.values.status}
@@ -355,10 +438,11 @@ export function TaskForm({
                 />
                 <span>
                   <span className="block text-sm font-semibold text-slate-800">
-                    Kritische Aufgabe
+                    Für das Event kritisch
                   </span>
                   <span className="mt-1 block text-xs leading-5 text-slate-500">
-                    Im Cockpit und in Filtern besonders hervorheben.
+                    Die Nichterledigung gefährdet die Durchführung oder ein
+                    wesentliches Eventziel.
                   </span>
                 </span>
               </label>
@@ -370,7 +454,7 @@ export function TaskForm({
                   value={state.values.isCritical ? "on" : ""}
                 />
                 <span className="block text-sm font-semibold text-slate-800">
-                  Kritische Aufgabe
+                  Für das Event kritisch
                 </span>
                 <span className="mt-1 block text-xs leading-5 text-slate-500">
                   {state.values.isCritical ? "Ja" : "Nein"}
@@ -417,7 +501,7 @@ export function TaskForm({
       <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         <Link
           className="inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-300 bg-white px-5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-          href={`/events/${state.values.eventId}/tasks`}
+          href={returnTo ?? `/events/${state.values.eventId}/tasks`}
         >
           Abbrechen
         </Link>

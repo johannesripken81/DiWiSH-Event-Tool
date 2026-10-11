@@ -73,13 +73,16 @@ export function PrimaryLink({
 
 export function Card({
   children,
+  id,
   className = "",
 }: {
   children: React.ReactNode;
   className?: string;
+  id?: string;
 }) {
   return (
     <section
+      id={id}
       className={`shadow-card rounded-xl border border-slate-200 bg-white ${className}`}
     >
       {children}

@@ -42,34 +42,39 @@ const completeTasks: ReadinessTask[] = [
   }),
   task({
     title: "Konzept im Vier-Augen-Prinzip prüfen",
-    phase: EventPhase.FOUR_EYES_REVIEW,
+    phase: EventPhase.CONCEPTION,
     isCritical: true,
   }),
   task({
     title: "Einladungstext freigeben",
-    phase: EventPhase.COMMUNICATION,
+    phase: EventPhase.PLANNING,
+    workPackage: "COMMUNICATION",
     approvalRequired: true,
   }),
   task({
     title: "Einladung versenden",
-    phase: EventPhase.COMMUNICATION,
+    phase: EventPhase.PLANNING,
+    workPackage: "COMMUNICATION",
     isCritical: true,
   }),
   task({
     title: "Location und Catering final bestätigen",
-    phase: EventPhase.LOCATION_CATERING,
+    phase: EventPhase.PLANNING,
+    workPackage: "LOCATION_CATERING",
   }),
   task({
     title: "Präsentation und Mikrofone testen",
-    phase: EventPhase.TECHNOLOGY,
+    phase: EventPhase.PLANNING,
+    workPackage: "TECHNOLOGY_MATERIAL",
   }),
   task({
     title: "Vor-Ort-Rollen verteilen",
-    phase: EventPhase.EVENT_DAY,
+    phase: EventPhase.EXECUTION,
   }),
   task({
     title: "Teilnehmerliste finalisieren",
-    phase: EventPhase.PARTICIPANT_MANAGEMENT,
+    phase: EventPhase.PLANNING,
+    workPackage: "PARTICIPANT_MANAGEMENT",
   }),
   task({
     title: "Feedback versenden",
@@ -78,12 +83,24 @@ const completeTasks: ReadinessTask[] = [
   }),
   task({
     title: "Debrief durchführen",
-    phase: EventPhase.EVALUATION,
+    phase: EventPhase.FOLLOW_UP,
     status: TaskStatus.OPEN,
   }),
 ];
 
 describe("Readiness Score", () => {
+  it("bewertet extern abgeschlossene Aufgaben ohne offene Risiken", () => {
+    const externalTasks = completeTasks.map((item) => ({
+      ...item,
+      status: TaskStatus.CANCELLED,
+      responsibleUserId: null,
+      dueDate: null,
+    }));
+    assert.equal(
+      calculateReadinessScore(completeEvent, externalTasks).score,
+      100,
+    );
+  });
   it("vergibt 100 Punkte für ein vollständig vorbereitetes Event", () => {
     const readiness = calculateReadinessScore(completeEvent, completeTasks);
 
@@ -105,7 +122,7 @@ describe("Readiness Score", () => {
 
   it("zieht die Punkte einer nicht erledigten Aufgabenkategorie ab", () => {
     const tasks = completeTasks.map((item) =>
-      item.phase === EventPhase.TECHNOLOGY
+      item.workPackage === "TECHNOLOGY_MATERIAL"
         ? { ...item, status: TaskStatus.IN_PROGRESS }
         : item,
     );

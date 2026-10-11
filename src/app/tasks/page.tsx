@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { Card, EmptyState, PageHeader, StatusBadge } from "@/components/ui";
 import { getCurrentUser } from "@/lib/current-user";
 import { hasPermission, Permission } from "@/lib/permissions";
-import { formatDate } from "@/modules/events/presentation";
+import { formatEventDate } from "@/modules/events/presentation";
 import {
   getTaskOverviewEvents,
   isTaskOverviewView,
@@ -119,7 +119,7 @@ export default async function TasksPage({
               className={`rounded-xl border px-4 py-3 text-left transition ${
                 active
                   ? "border-brand-300 bg-brand-50 text-brand-950"
-                  : "border-slate-200 bg-white text-slate-700 hover:border-brand-200 hover:bg-slate-50"
+                  : "hover:border-brand-200 border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
               }`}
               href={getViewHref(view.key)}
               key={view.key}
@@ -158,17 +158,25 @@ export default async function TasksPage({
                 {events.map((event) => (
                   <tr className="hover:bg-slate-50/80" key={event.id}>
                     <td className="px-5 py-4 font-bold text-slate-800">
-                      {event.title}
+                      <Link
+                        className="hover:text-brand-700 hover:underline"
+                        href={`/events/${event.id}`}
+                        prefetch={false}
+                      >
+                        {event.title}
+                      </Link>
                     </td>
                     <td className="px-4 py-4 text-slate-600">
-                      {formatDate(event.eventDate)}
+                      {formatEventDate(event.eventDate)}
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex min-w-32 items-center gap-2">
                         <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200">
                           <div
                             className="bg-brand-700 h-full rounded-full"
-                            style={{ width: `${event.metrics.progress}%` }}
+                            style={{
+                              width: `${event.metrics.progress}%`,
+                            }}
                           />
                         </div>
                         <span className="font-bold text-slate-700">

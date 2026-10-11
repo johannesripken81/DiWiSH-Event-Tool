@@ -10,16 +10,21 @@ import {
   type TaskFormValues,
 } from "@/modules/tasks/task-form";
 
+import { getTaskReturnTo } from "@/modules/tasks/list-state";
+
 import { TaskForm } from "../../task-form";
 
 export const dynamic = "force-dynamic";
 
 export default async function EditEventTaskPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string; taskId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { id, taskId } = await params;
+  const [{ id, taskId }, query] = await Promise.all([params, searchParams]);
+  const returnTo = getTaskReturnTo(id, query.returnTo);
   const { event, task, users } = await getEventTaskEditorData(id, taskId);
   const currentUser = await getCurrentUser();
 
@@ -46,6 +51,7 @@ export default async function EditEventTaskPage({
     title: task.title,
     description: task.description ?? "",
     phase: task.phase,
+    workPackage: task.workPackage ?? "",
     responsibleUserId: task.responsibleUserId ?? "",
     reviewerUserId: task.reviewerUserId ?? "",
     status: task.status,
@@ -60,9 +66,9 @@ export default async function EditEventTaskPage({
     <>
       <Link
         className="text-brand-700 hover:text-brand-950 mb-5 inline-flex text-sm font-semibold"
-        href={`/events/${event.id}/tasks`}
+        href={returnTo}
       >
-        ← Zurück zur Aufgabenplanung
+        ← Zurück zur Übersicht
       </Link>
       <PageHeader
         description={`Aufgabe im Event „${event.title}“ aktualisieren.`}
@@ -73,6 +79,7 @@ export default async function EditEventTaskPage({
         canManageAssignment={canManageAllTasks}
         initialValues={initialValues}
         mode="edit"
+        returnTo={returnTo}
         users={users}
       />
     </>
