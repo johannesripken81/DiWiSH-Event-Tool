@@ -158,7 +158,13 @@ export default async function TasksPage({
                 {events.map((event) => (
                   <tr className="hover:bg-slate-50/80" key={event.id}>
                     <td className="px-5 py-4 font-bold text-slate-800">
-                      {event.title}
+                      <Link
+                        className="hover:text-brand-700 hover:underline"
+                        href={`/events/${event.id}`}
+                        prefetch={false}
+                      >
+                        {event.title}
+                      </Link>
                     </td>
                     <td className="px-4 py-4 text-slate-600">
                       {formatEventDate(event.eventDate)}

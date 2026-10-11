@@ -461,8 +461,6 @@ export default async function SettingsPage({
           </div>
         </Card>
 
-        {webVitals ? <WebVitalsCard data={webVitals} /> : null}
-
         <Card id="team-rollen" className="scroll-mt-6">
           <CardHeader
             description="Aktuelle Nutzer und Rollen im System."
@@ -824,6 +822,12 @@ export default async function SettingsPage({
           Zurück zum Dashboard
         </Link>
       </div>
+
+      {webVitals ? (
+        <div className="mt-6">
+          <WebVitalsCard data={webVitals} />
+        </div>
+      ) : null}
     </>
   );
 }
