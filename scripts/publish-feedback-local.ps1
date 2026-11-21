@@ -2,13 +2,13 @@
 param(
     [ValidateSet('Publish', 'MigratePreview', 'MigrateProduction')]
     [string]$Step = 'Publish',
+    [string]$ConnectionFile,
     [switch]$CheckOnly
 )
 
 $ErrorActionPreference = 'Stop'
 $feedbackRoot = Split-Path -Parent $PSScriptRoot
 $feedbackBranch = 'release/feedback-quick-fixes-20261121'
-$feedbackScope = 'johannesripken81s-projects'
 $feedbackFiles = @(
     'prisma/schema.prisma',
     'scripts/check-dashboard-layout.ts',
@@ -100,10 +100,11 @@ try {
             Write-Host "Vercel-Projekt geprueft. Geplanter Migrationsschritt: $feedbackEnvironment. Keine Datenbankverbindung hergestellt."
             return
         }
-        $feedbackEnvArgs = @('vercel', 'env', 'run', '--environment', $feedbackEnvironment, '--scope', $feedbackScope)
-        if ($feedbackEnvironment -eq 'preview') { $feedbackEnvArgs += @('--git-branch', $feedbackBranch) }
-        $feedbackEnvArgs += @('--', 'node', 'scripts/migrate-feedback-release.mjs', $feedbackEnvironment)
-        Invoke-FeedbackCommand -Command 'npx.cmd' -CommandArgs $feedbackEnvArgs
+        if (-not $ConnectionFile) { throw 'Bitte mit -ConnectionFile eine ausdruecklich fuer diese Umgebung ausgewaehlte lokale Neon-Verbindungsdatei angeben. Vercel-Secrets sind nicht auslesbar; lokale Standardwerte werden nicht als Ersatz verwendet.' }
+        $feedbackConnectionPath = (Resolve-Path -LiteralPath $ConnectionFile).Path
+        & git check-ignore --quiet -- $feedbackConnectionPath
+        if ($LASTEXITCODE -ne 0) { throw 'Die Verbindungsdatei muss innerhalb des Repositorys liegen und von Git ignoriert werden.' }
+        Invoke-FeedbackCommand -Command 'node' -CommandArgs @('scripts/migrate-feedback-release.mjs', $feedbackEnvironment, $feedbackConnectionPath)
     }
 } finally {
     Pop-Location

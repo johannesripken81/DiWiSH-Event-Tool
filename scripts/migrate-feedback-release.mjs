@@ -3,6 +3,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
+import { parse } from "dotenv";
 
 const { Client } = pg;
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -37,17 +38,31 @@ async function main() {
   ) {
     throw new Error("Unerwartetes Vercel-Projekt.");
   }
-  if (process.env.VERCEL_ENV && process.env.VERCEL_ENV !== environment) {
+  const connectionFile = process.argv[3];
+  if (!connectionFile) {
+    throw new Error(
+      "Eine explizite Verbindungsdatei fehlt. Den aktualisierten PowerShell-Helfer verwenden.",
+    );
+  }
+  const selectedEnv = parse(
+    fs.readFileSync(path.resolve(root, connectionFile), "utf8"),
+  );
+  if (selectedEnv.VERCEL_ENV && selectedEnv.VERCEL_ENV !== environment) {
     throw new Error(
       "Die geladenen Vercel-Variablen passen nicht zur gewaehlten Umgebung.",
     );
   }
-  // Deliberately do not load .env: Vercel env run supplies this environment's values.
-  const connectionString = process.env.DATABASE_URL_UNPOOLED?.trim();
+  // Never fall back to inherited values or local .env files when Vercel omits Secrets.
+  const connectionString = selectedEnv.DATABASE_URL_UNPOOLED?.trim();
   if (!connectionString)
     throw new Error(
-      "DATABASE_URL_UNPOOLED fehlt in der gewaehlten Vercel-Umgebung.",
+      "DATABASE_URL_UNPOOLED fehlt in der ausgewaehlten Datei. Vercel-Secrets sind nicht auslesbar; eine lokale, von Neon bezogene Verbindungsdatei mit -ConnectionFile angeben.",
     );
+  if (/\[(?:SENSITIVE|REDACTED|SECRET)\]/i.test(connectionString)) {
+    throw new Error(
+      "Vercel hat nur einen Secret-Platzhalter exportiert. Keine Migration ausgefuehrt. Eine lokale Neon-Verbindungsdatei mit -ConnectionFile angeben.",
+    );
+  }
   const url = new URL(connectionString);
   if (
     !["postgresql:", "postgres:"].includes(url.protocol) ||
@@ -110,7 +125,11 @@ async function main() {
       ],
       {
         cwd: root,
-        env: { ...process.env, DATABASE_URL_UNPOOLED: connectionString },
+        env: {
+          ...process.env,
+          DATABASE_URL_UNPOOLED: connectionString,
+          DATABASE_URL: selectedEnv.DATABASE_URL?.trim() || connectionString,
+        },
         stdio: "inherit",
       },
     );

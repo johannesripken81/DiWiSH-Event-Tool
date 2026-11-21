@@ -17,25 +17,21 @@ Bei einem Rebase-Konflikt oder einer fehlgeschlagenen Pruefung stoppt der Ablauf
 
 Falls die Ausfuehrung einer `.ps1`-Datei durch eine Windows-Richtlinie gesperrt ist, keine systemweite Richtlinie fuer diesen Release abschalten. Stattdessen die Fehlermeldung weitergeben oder die Git-Befehle aus dem Skript im eigenen Terminal einzeln ausfuehren.
 
-## 2. Vercel-Anmeldung und getrennte Preview-Datenbank
+## 2. Getrennte Preview-Datenbank und bekannte Verbindungen
 
-Wenn die Vercel CLI noch nicht angemeldet ist:
-
-```powershell
-npx.cmd vercel login
-```
-
-Falls npm nach der Installation der offiziellen Vercel CLI fragt, diese bestaetigen. Das vorhandene `.vercel/project.json` verknuepft das Projekt mit `diwish-event-tool` im Team `johannesripken81s-projects`.
+Das vorhandene `.vercel/project.json` verknuepft das Projekt mit `diwish-event-tool` im Team `johannesripken81s-projects`. Die als Secret gespeicherten Production- und Preview-Werte lassen sich nicht zuruecklesen. Der Helfer verwendet deshalb keine ueber `vercel env run` geerbten Datenbankwerte mehr: Bei fehlenden Secrets koennen dort lokale `.env`-Werte zum Einsatz kommen, deren Zuordnung zur angeforderten Umgebung nicht bewiesen ist.
 
 In den Vercel-Projekteinstellungen muessen `DATABASE_URL` und `DATABASE_URL_UNPOOLED` fuer Preview auf eine getrennte Testdatenbank zeigen und fuer Production auf die Live-Datenbank. Vor dem naechsten Schritt diesen Unterschied pruefen; das Migrationsskript kann aus einer einzelnen Verbindung nicht erkennen, ob dieselbe Datenbank versehentlich fuer beide Umgebungen hinterlegt ist.
+
+Die aktuellen Verbindungen in der Neon-Konsole fuer die jeweils ausgewaehlte Branch und Datenbank beziehen und lokal in `.env.release-preview` bzw. `.env.release-production` speichern. Diese Dateien werden bereits von Git ignoriert. Jede Datei braucht `DATABASE_URL_UNPOOLED` fuer die direkte Verbindung; `DATABASE_URL` kann fuer die gepoolte Verbindung ergaenzt werden. Zugangsdaten nicht in Chat, Terminalbefehle oder Git uebernehmen. Die bekannten Test-Verbindungen gegebenenfalls erneut als Preview-Secrets in Vercel hinterlegen, damit die Zuordnung feststeht. Die Live-Zuordnung separat in Neon bestaetigen.
 
 ## 3. Preview-Migration und Vorschau pruefen
 
 ```powershell
-& .\scripts\publish-feedback-local.ps1 -Step MigratePreview
+& .\scripts\publish-feedback-local.ps1 -Step MigratePreview -ConnectionFile .env.release-preview
 ```
 
-Die aktuellen Preview-Verbindungswerte fuer den Release-Branch werden mit `vercel env run` nur fuer den Migrationsprozess geladen. Die lokale `.env` wird nicht als Ersatz geladen und nicht ueberschrieben. Das Skript akzeptiert ausschliesslich die bereits bekannte neue Feedback-Migration; fehlen aeltere Migrationen oder ist ein vorheriger Lauf fehlgeschlagen, stoppt es.
+Der aktualisierte Helfer verlangt immer eine ausdruecklich ausgewaehlte, von Git ignorierte Verbindungsdatei. Fehlt sie, fehlt der direkte Datenbankwert darin oder enthaelt sie nur einen Secret-Platzhalter, stoppt der Helfer vor jeder Datenbankverbindung. Er verwendet weder geerbte Verbindungswerte noch `.env` oder `.env.local` als Ersatz. Das Skript akzeptiert ausschliesslich die bereits bekannte neue Feedback-Migration; fehlen aeltere Migrationen oder ist ein vorheriger Lauf fehlgeschlagen, stoppt es.
 
 Den Pull Request auf GitHub erstellen. Nach erfolgreicher GitHub-Quality-Pruefung die Vercel-Vorschau oeffnen und mit einem Testkonto pruefen:
 
@@ -52,10 +48,12 @@ Falls auf dem Branch bereits ein automatisches Preview-Deployment erstellt wurde
 Nach erfolgreicher Vorschau:
 
 ```powershell
-& .\scripts\publish-feedback-local.ps1 -Step MigrateProduction
+& .\scripts\publish-feedback-local.ps1 -Step MigrateProduction -ConnectionFile .env.release-production
 ```
 
-Dieser Schritt laedt die aktuellen Production-Verbindungswerte aus demselben Vercel-Projekt und wendet `20261117120000_feedback_quick_fixes` an. Anschliessend prueft er das Projektfeld und den Aufgabenstatus in der Datenbank. Bereits angewendete Migrationen werden nur geprueft. Das Skript setzt keine Datenbank zurueck und fuehrt keinen Seed aus.
+Dieser Schritt verwendet ausschliesslich die in Neon bestaetigte Live-Verbindung aus `.env.release-production`.
+
+Der Helfer wendet `20261117120000_feedback_quick_fixes` an und prueft anschliessend Projektfeld und Aufgabenstatus. Bereits angewendete Migrationen werden nur geprueft. Das Skript setzt keine Datenbank zurueck und fuehrt keinen Seed aus.
 
 Erst nach erfolgreicher Meldung den geprueften Pull Request nach `main` mergen. Die vorhandene GitHub-Anbindung erstellt dadurch das Production Deployment. In Vercel den erfolgreichen Status des neuen Deployments abwarten und danach <https://diwish-event-tool.vercel.app> pruefen. Insbesondere das konkrete Event Beiratssitzung bei Bedarf ueber Format → Bearbeiten korrigieren; der vorhandene Wert wird nicht aus dem Eventtitel abgeleitet.
 
