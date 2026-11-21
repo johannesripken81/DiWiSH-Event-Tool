@@ -20,7 +20,7 @@ async function main() {
       CREATE TABLE "Event" (id TEXT, title TEXT, location TEXT, "eventDate" TIMESTAMP, status TEXT);
       CREATE TABLE "User" (id TEXT, name TEXT);
       CREATE TABLE "EventTask" (id TEXT, title TEXT, phase TEXT, "workPackage" TEXT, priority TEXT, "dueDate" TIMESTAMP, "isCritical" BOOLEAN, "eventId" TEXT, "responsibleUserId" TEXT, status TEXT);
-      INSERT INTO "Event" VALUES ('e1','Event 1','Kiel','2026-10-20','PLANNING'), ('e2','Event 2',null,'2026-10-01','FOLLOW_UP'), ('e3','Event 3',null,'2026-10-25','COMPLETED'), ('e4','Event 4',null,'2026-10-25','CANCELLED');
+      INSERT INTO "Event" VALUES ('e1','Event 1','Kiel','2026-10-20','PLANNING'), ('e2','Event 2',null,'2026-10-01','FOLLOW_UP'), ('e3','Event 3',null,'2026-10-02','COMPLETED'), ('e4','Event 4',null,'2026-10-25','CANCELLED'), ('e5','Heute',null,'2026-10-10','PLANNING');
       INSERT INTO "User" VALUES ('u1','Person 1'), ('u2','Person 2');
       INSERT INTO "EventTask" VALUES
         ('done','Erledigt','PLANNING',null,'HIGH','2026-10-09',false,'e1','u1','COMPLETED'),
@@ -36,7 +36,10 @@ async function main() {
       selectedUnassigned: false,
     };
     const execute = async (
-      options: typeof base & { selectedResponsibleUserId?: string },
+      options: typeof base & {
+        selectedResponsibleUserId?: string;
+        showPastEvents?: boolean;
+      },
     ) => {
       const query = getDashboardQuery(options);
       return (await client.query(query.text, query.values)).rows[0];
@@ -45,8 +48,16 @@ async function main() {
     assert.equal(all.activeEvents, 2);
     assert.deepEqual(
       all.upcomingEvents.map((event: { id: string }) => event.id),
-      ["e2", "e1"],
+      ["e5", "e1"],
     );
+    assert.deepEqual(all.pastEvents, []);
+    const withPast = await execute({ ...base, showPastEvents: true });
+    assert.deepEqual(
+      withPast.pastEvents.map((event: { id: string }) => event.id),
+      ["e3", "e2"],
+    );
+    assert.deepEqual(withPast.upcomingEvents, all.upcomingEvents);
+    assert.deepEqual(withPast.dashboardTasks, all.dashboardTasks);
     const event = all.upcomingEvents.find(
       (item: { id: string }) => item.id === "e1",
     );
@@ -75,7 +86,10 @@ async function main() {
     await client.end();
   }
 }
-main().catch(() => {
+main().catch((error: unknown) => {
+  console.error(
+    error instanceof Error ? error.message : "Unbekannter Testfehler.",
+  );
   console.error(
     "Dashboard-Test fehlgeschlagen. Bestehende Eventdaten wurden nicht verändert.",
   );

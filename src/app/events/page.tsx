@@ -142,7 +142,7 @@ export default async function EventsPage({
               className="focus:border-brand-500 min-h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 outline-none"
               defaultValue={search ?? ""}
               name="search"
-              placeholder="Titel, Ort, Format oder Lead"
+              placeholder="Titel, Ort, Format, Projekt oder Lead"
               type="search"
             />
           </label>
@@ -246,7 +246,7 @@ export default async function EventsPage({
                   <tr>
                     <th className="px-5 py-3">Event</th>
                     <th className="px-4 py-3">Datum</th>
-                    <th className="px-4 py-3">Format</th>
+                    <th className="px-4 py-3">Format / Projekt</th>
                     <th className="px-4 py-3">Event Lead</th>
                     <th className="px-4 py-3">Fortschritt</th>
                     <th className="px-4 py-3 text-right">Offen</th>
@@ -271,6 +271,20 @@ export default async function EventsPage({
                       </td>
                       <td className="px-4 py-4 text-slate-600">
                         {event.format ?? "Nicht festgelegt"}
+                        {event.project ? (
+                          <p className="mt-1 text-xs text-slate-500">
+                            Projekt: {event.project}
+                          </p>
+                        ) : null}
+                        {canManageEvents ? (
+                          <Link
+                            href={`/events/${event.id}/edit#format`}
+                            className="text-brand-700 mt-1 block text-xs font-semibold hover:underline"
+                            aria-label={`Format und Projekt von ${event.title} bearbeiten`}
+                          >
+                            Bearbeiten
+                          </Link>
+                        ) : null}
                       </td>
                       <td className="px-4 py-4 text-slate-600">
                         {event.eventLead?.name ?? "Nicht zugewiesen"}

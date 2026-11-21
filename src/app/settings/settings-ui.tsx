@@ -2,6 +2,7 @@ import { EventPhase, TaskPriority, UserRole } from "@/generated/prisma/enums";
 import {
   eventPhaseOptions,
   getPhaseLabel,
+  getPhaseDescription,
   getTaskPriorityPresentation,
   taskPriorityOptions,
 } from "@/modules/events/presentation";
@@ -206,18 +207,24 @@ export function PhaseSelect({
   name?: string;
 }) {
   return (
-    <select
-      className={inputClass}
-      defaultValue={defaultValue}
-      disabled={disabled}
-      name={name}
-    >
-      {eventPhaseOptions.map((phase) => (
-        <option key={phase} value={phase}>
-          {getPhaseLabel(phase)}
-        </option>
-      ))}
-    </select>
+    <div>
+      <select
+        className={inputClass}
+        defaultValue={defaultValue}
+        disabled={disabled}
+        name={name}
+      >
+        {eventPhaseOptions.map((phase) => (
+          <option key={phase} value={phase}>
+            {getPhaseLabel(phase)}
+          </option>
+        ))}
+      </select>
+      <p className="mt-1.5 text-xs leading-5 text-slate-500">
+        Konzeption: {getPhaseDescription(EventPhase.CONCEPTION)} Planung:{" "}
+        {getPhaseDescription(EventPhase.PLANNING)}
+      </p>
+    </div>
   );
 }
 

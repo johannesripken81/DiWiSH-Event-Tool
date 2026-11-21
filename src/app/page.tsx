@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DashboardEventList } from "./dashboard-event-list";
 
 import {
   Card,
@@ -37,22 +38,6 @@ function addDays(date: Date, days: number) {
   return result;
 }
 
-function getDateTile(date: Date) {
-  const day = new Intl.DateTimeFormat("de-DE", {
-    day: "2-digit",
-    timeZone: "UTC",
-  }).format(date);
-  const month = new Intl.DateTimeFormat("de-DE", {
-    month: "short",
-    timeZone: "UTC",
-  })
-    .format(date)
-    .replace(".", "")
-    .toUpperCase();
-
-  return `${day}. ${month}`;
-}
-
 function getDueBadge(dueDate: Date, today: Date) {
   const diffDays = Math.round(
     (dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
@@ -87,13 +72,25 @@ export default async function DashboardPage({
       ? responsibleUserId
       : undefined;
   const selectedUnassigned = responsibleUserId === unassignedFilterValue;
+  const showPastEvents = firstValue(query.showPastEvents) === "true";
+  const getDashboardHref = (
+    person = responsibleUserId,
+    past = showPastEvents,
+  ) => {
+    const params = new URLSearchParams();
+    if (person) params.set("responsibleUserId", person);
+    if (past) params.set("showPastEvents", "true");
+    return params.size ? `/?${params}` : "/";
+  };
+  const dashboardHref = getDashboardHref();
   const today = getTodayUtc();
   const nextSevenDays = addDays(today, 7);
-  const { activeEvents, dashboardTasks, upcomingEvents, users } =
+  const { activeEvents, dashboardTasks, upcomingEvents, pastEvents, users } =
     await getDashboardData({
       nextSevenDays,
       selectedResponsibleUserId,
       selectedUnassigned,
+      showPastEvents,
       today,
     });
   const currentTaskCount = dashboardTasks.length;
@@ -149,12 +146,12 @@ export default async function DashboardPage({
                 </p>
               </div>
               <form className="flex flex-wrap gap-2" method="get">
+                {showPastEvents ? (
+                  <input type="hidden" name="showPastEvents" value="true" />
+                ) : null}
                 <Link
                   className="text-brand-700 inline-flex min-h-10 items-center text-sm font-semibold hover:underline"
-                  href={
-                    "/?" +
-                    new URLSearchParams({ responsibleUserId: currentUser.id })
-                  }
+                  href={getDashboardHref(currentUser.id)}
                 >
                   Meine Aufgaben
                 </Link>
@@ -185,7 +182,7 @@ export default async function DashboardPage({
                 {responsibleUserId ? (
                   <Link
                     className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-600 hover:bg-slate-50"
-                    href="/"
+                    href={getDashboardHref("")}
                   >
                     Reset
                   </Link>
@@ -200,7 +197,7 @@ export default async function DashboardPage({
                 responsibleUserId ? (
                   <Link
                     className="text-brand-700 text-sm font-semibold hover:underline"
-                    href="/"
+                    href={getDashboardHref("")}
                   >
                     Filter zurücksetzen
                   </Link>
@@ -233,9 +230,7 @@ export default async function DashboardPage({
                             href={getTaskHref(
                               task.event.id,
                               task.id,
-                              responsibleUserId
-                                ? `/?${new URLSearchParams({ responsibleUserId })}`
-                                : "/",
+                              dashboardHref,
                             )}
                           >
                             {task.title}
@@ -292,74 +287,55 @@ export default async function DashboardPage({
               Events & Umsetzungsstand
             </h2>
             <p className="text-muted mt-1 text-xs">
-              {activeEvents} aktive Events · Vorschau: {upcomingEvents.length}
+              {activeEvents} bevorstehende aktive Events · Vorschau:{" "}
+              {upcomingEvents.length}
             </p>
           </div>
           {upcomingEvents.length === 0 ? (
             <div className="p-5">
               <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600">
-                Es gibt aktuell keine aktiven Events.
+                Es gibt aktuell keine bevorstehenden aktiven Events.
               </p>
             </div>
           ) : (
-            <div className="divide-y divide-slate-100 px-5">
-              {upcomingEvents.map((event) => (
-                <Link
-                  className="flex items-center gap-4 py-4"
-                  href={`/events/${event.id}`}
-                  key={event.id}
-                >
-                  <div className="bg-brand-50 text-brand-800 grid size-12 shrink-0 place-items-center rounded-lg text-center text-[10px] leading-3 font-extrabold tracking-wide">
-                    {getDateTile(event.eventDate)}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold text-slate-800">
-                      {event.title}
-                    </p>
-                    <p className="text-muted mt-1 text-xs">
-                      {formatEventDate(event.eventDate)} ·{" "}
-                      {event.location ?? "Location offen"}
-                    </p>
-                    <div className="mt-3 flex items-center justify-between gap-2 text-xs text-slate-600">
-                      <span>
-                        {event.totalTasks === 0
-                          ? "Noch keine Aufgaben"
-                          : event.completedTasks +
-                            " / " +
-                            event.totalTasks +
-                            " abgeschlossen · " +
-                            event.progress +
-                            "%"}
-                      </span>
-                      {event.overdueTasks > 0 ? (
-                        <span className="font-semibold text-red-700">
-                          {event.overdueTasks} überfällig
-                        </span>
-                      ) : null}
-                    </div>
-                    <div
-                      role="progressbar"
-                      aria-label={"Umsetzungsstand " + event.title}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      aria-valuenow={event.progress}
-                      aria-valuetext={
-                        event.totalTasks === 0
-                          ? "Noch keine Aufgaben"
-                          : event.progress + "% abgeschlossen"
-                      }
-                      className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100"
-                    >
-                      <div
-                        className="bg-brand-700 h-full rounded-full"
-                        style={{ width: event.progress + "%" }}
-                      />
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
+            <DashboardEventList events={upcomingEvents} />
           )}
+          <div className="border-t border-slate-200">
+            <Link
+              className="text-brand-700 inline-flex min-h-11 items-center px-5 text-sm font-semibold hover:underline"
+              href={getDashboardHref(responsibleUserId, !showPastEvents)}
+              aria-expanded={showPastEvents}
+              aria-controls="past-events"
+            >
+              {showPastEvents
+                ? "Vergangene Events ausblenden"
+                : "Vergangene Events anzeigen"}
+            </Link>
+            {showPastEvents ? (
+              <div id="past-events">
+                <h3 className="px-5 text-sm font-bold text-slate-700">
+                  Vergangene Events
+                </h3>
+                <p className="px-5 pt-1 text-xs text-slate-500">
+                  Die letzten acht Events. Offene Nachbereitungsaufgaben bleiben
+                  in der Aufgabenliste sichtbar.
+                </p>
+                {pastEvents.length > 0 ? (
+                  <DashboardEventList events={pastEvents} />
+                ) : (
+                  <p className="p-5 text-sm text-slate-500">
+                    Keine vergangenen Events vorhanden.
+                  </p>
+                )}
+                <Link
+                  href="/events?period=past"
+                  className="text-brand-700 mb-4 inline-block px-5 text-sm font-semibold hover:underline"
+                >
+                  Alle vergangenen Events ansehen
+                </Link>
+              </div>
+            ) : null}
+          </div>
           <div className="border-t border-slate-200 px-5 py-3">
             <Link
               className="text-brand-700 text-sm font-semibold hover:underline"

@@ -10,6 +10,7 @@ import {
   formatDate,
   formatEventDateTime,
   getPhaseLabel,
+  getPhaseDescription,
   getSafeExternalUrl,
   getTaskStatusPresentation,
 } from "@/modules/events/presentation";
@@ -539,6 +540,7 @@ export default async function EventCockpitPage({
           <div className="min-w-0">
             <p className="text-xs font-medium text-slate-500">
               {event.format ?? "Format offen"}
+              {event.project ? ` · Projekt: ${event.project}` : ""}
             </p>
             <h1 className="text-brand-950 mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
               {event.title}
@@ -677,6 +679,7 @@ export default async function EventCockpitPage({
                 <div
                   role="progressbar"
                   aria-label={getPhaseLabel(phase.phase)}
+                  title={getPhaseDescription(phase.phase)}
                   aria-valuemin={0}
                   aria-valuemax={100}
                   aria-valuenow={phase.progress}
@@ -695,6 +698,9 @@ export default async function EventCockpitPage({
                     style={{ width: phase.progress + "%" }}
                   />
                 </div>
+                <p className="mt-2 text-xs leading-5 text-slate-500">
+                  {getPhaseDescription(phase.phase)}
+                </p>
               </div>
             ))}
           </div>

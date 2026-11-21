@@ -21,6 +21,7 @@ export const eventStatusOptions = [
 export const taskStatusOptions = [
   TaskStatus.OPEN,
   TaskStatus.IN_PROGRESS,
+  TaskStatus.WAITING_EXTERNAL,
   TaskStatus.IN_REVIEW,
   TaskStatus.BLOCKED,
   TaskStatus.COMPLETED,
@@ -59,6 +60,7 @@ const taskStatusPresentation: Record<
 > = {
   OPEN: { label: "Offen", color: "gray" },
   IN_PROGRESS: { label: "In Bearbeitung", color: "blue" },
+  WAITING_EXTERNAL: { label: "Warte auf Rückmeldung extern", color: "yellow" },
   BLOCKED: { label: "Blockiert", color: "red" },
   IN_REVIEW: { label: "Wartet auf Prüfung", color: "yellow" },
   COMPLETED: { label: "Erledigt", color: "green" },
@@ -71,6 +73,20 @@ const phaseLabels: Record<EventPhase, string> = {
   EXECUTION: "Durchführung",
   FOLLOW_UP: "Nachbereitung",
 };
+
+const phaseDescriptions: Record<EventPhase, string> = {
+  CONCEPTION:
+    "Ziele, Zielgruppe, Inhalte und Rahmen festlegen: Was wollen wir erreichen und für wen?",
+  PLANNING:
+    "Das beschlossene Konzept organisatorisch vorbereiten: Termine, Räume, Einladungen und Abläufe konkret planen.",
+  EXECUTION: "Das Event vor Ort oder online durchführen und begleiten.",
+  FOLLOW_UP:
+    "Feedback auswerten, Ergebnisse dokumentieren und Kontakte nachverfolgen.",
+};
+
+export function getPhaseDescription(phase: EventPhase) {
+  return phaseDescriptions[phase];
+}
 
 const priorityPresentation: Record<
   TaskPriority,
