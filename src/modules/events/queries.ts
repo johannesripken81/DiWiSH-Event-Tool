@@ -28,6 +28,7 @@ const eventCockpitSelect = {
   endTime: true,
   location: true,
   format: true,
+  project: true,
   goal: true,
   targetAudience: true,
   eventLeadId: true,
@@ -87,6 +88,7 @@ type EventListRow = {
   title: string;
   eventDate: Date | string;
   format: string | null;
+  project: string | null;
   eventLeadId: string | null;
   eventLeadName: string | null;
   totalTasks: number;
@@ -188,6 +190,7 @@ function getEventListWhereSql(filters: EventListFilters, today: Date) {
           e.title ILIKE ${searchPattern}
           OR COALESCE(e.location, '') ILIKE ${searchPattern}
           OR COALESCE(e.format, '') ILIKE ${searchPattern}
+          OR COALESCE(e.project, '') ILIKE ${searchPattern}
           OR COALESCE(u.name, '') ILIKE ${searchPattern}
         )`
       : null,
@@ -249,6 +252,7 @@ export async function getEventListData(filters: EventListFilters, page = 1) {
         e.title,
         e."eventDate",
         e.format,
+        e.project,
         u.id AS "eventLeadId",
         u.name AS "eventLeadName",
         COUNT(t.id)::int AS "totalTasks",
@@ -279,6 +283,7 @@ export async function getEventListData(filters: EventListFilters, page = 1) {
       title: event.title,
       eventDate: new Date(event.eventDate),
       format: event.format,
+      project: event.project,
       eventLead: event.eventLeadId
         ? {
             id: event.eventLeadId,

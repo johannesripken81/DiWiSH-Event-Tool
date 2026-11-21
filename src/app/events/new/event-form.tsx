@@ -78,6 +78,8 @@ function TextInput({
   placeholder,
   inputMode,
   min,
+  list,
+  hint,
 }: {
   label: string;
   name: keyof EventFormValues;
@@ -87,6 +89,8 @@ function TextInput({
   placeholder?: string;
   inputMode?: "decimal" | "numeric" | "url";
   min?: string;
+  list?: string;
+  hint?: string;
 }) {
   const hasError = Boolean(state.fieldErrors[name]?.length);
 
@@ -94,7 +98,11 @@ function TextInput({
     <label className="block">
       <FieldLabel required={required}>{label}</FieldLabel>
       <input
-        aria-describedby={hasError ? `${name}-error` : undefined}
+        aria-describedby={
+          [hint ? `${name}-hint` : "", hasError ? `${name}-error` : ""]
+            .filter(Boolean)
+            .join(" ") || undefined
+        }
         aria-invalid={hasError}
         className={`min-h-11 w-full rounded-lg border bg-white px-3 text-sm text-slate-800 outline-none placeholder:text-slate-400 ${
           hasError
@@ -104,11 +112,21 @@ function TextInput({
         defaultValue={state.values[name]}
         inputMode={inputMode}
         min={min}
+        list={list}
+        id={name}
         name={name}
         placeholder={placeholder}
         required={required}
         type={type}
       />
+      {hint ? (
+        <p
+          id={`${name}-hint`}
+          className="mt-1.5 text-xs leading-5 text-slate-500"
+        >
+          {hint}
+        </p>
+      ) : null}
       <span id={`${name}-error`}>
         <FieldError name={name} state={state} />
       </span>
@@ -284,10 +302,35 @@ export function EventForm({
           <TextInput
             label="Format"
             name="format"
-            placeholder="Zum Beispiel: Netzwerktreffen"
+            list="event-format-options"
+            hint="Veranstaltungsart frei eingeben oder auswählen, z. B. Beiratssitzung. Die Aufgabenvorlage ändert das Format nicht."
+            placeholder="Zum Beispiel: Beiratssitzung"
             required
             state={state}
           />
+          <datalist id="event-format-options">
+            {[
+              "Beiratssitzung",
+              "Netzwerktreffen",
+              "Fachgruppenveranstaltung",
+              "Workshop",
+              "Konferenz",
+              "Webinar",
+            ].map((format) => (
+              <option key={format} value={format} />
+            ))}
+          </datalist>
+          <TextInput
+            label="Projekt (optional)"
+            name="project"
+            list="event-project-options"
+            hint="FachkraftDigital auswählen oder einen anderen Projektnamen eingeben. Das Veranstaltungsformat bleibt separat erhalten."
+            placeholder="Zum Beispiel: FachkraftDigital"
+            state={state}
+          />
+          <datalist id="event-project-options">
+            <option value="FachkraftDigital" />
+          </datalist>
           <TextInput
             inputMode="decimal"
             label="Budgetrahmen in EUR"
@@ -362,26 +405,56 @@ export function EventForm({
             </h2>
             <p className="text-muted mt-1 text-xs">
               Bei Auswahl eines Templates werden dessen Aufgaben mit berechneten
-              Fälligkeiten angelegt.
+              Fälligkeiten angelegt. Format und Projekt werden separat oben
+              festgelegt.
             </p>
           </div>
           <div className="p-5">
-            <label className="block">
-              <FieldLabel>Event-Template</FieldLabel>
-              <select
-                className="focus:border-brand-500 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 outline-none"
-                defaultValue={state.values.eventTemplateId}
-                name="eventTemplateId"
-              >
-                <option value="">Ohne Template starten</option>
-                {templates.map((template) => (
-                  <option key={template.id} value={template.id}>
-                    {template.name} · {template.taskCount} Aufgaben
-                  </option>
-                ))}
-              </select>
+            <fieldset className="min-w-0 space-y-3">
+              <legend className="mb-2 text-sm font-semibold text-slate-700">
+                Event-Template
+              </legend>
+              {[
+                {
+                  id: "",
+                  name: "Ohne Template starten",
+                  description: "Aufgaben später selbst anlegen.",
+                  taskCount: 0,
+                },
+                ...templates,
+              ].map((template) => (
+                <label
+                  key={template.id}
+                  className="has-checked:border-brand-500 has-checked:bg-brand-50 flex min-w-0 cursor-pointer items-start gap-3 rounded-lg border border-slate-300 p-3"
+                >
+                  <input
+                    type="radio"
+                    name="eventTemplateId"
+                    value={template.id}
+                    defaultChecked={
+                      state.values.eventTemplateId === template.id
+                    }
+                    className="accent-brand-900 mt-1 size-4 shrink-0"
+                  />
+                  <span className="min-w-0 [overflow-wrap:anywhere]">
+                    <span className="block text-sm font-semibold text-slate-800">
+                      {template.name}
+                    </span>
+                    {template.id ? (
+                      <span className="mt-1 block text-xs font-semibold text-slate-600">
+                        {template.taskCount} Aufgaben
+                      </span>
+                    ) : null}
+                    {template.description ? (
+                      <span className="mt-1 block text-xs leading-5 text-slate-500">
+                        {template.description}
+                      </span>
+                    ) : null}
+                  </span>
+                </label>
+              ))}
               <FieldError name="eventTemplateId" state={state} />
-            </label>
+            </fieldset>
             {templates.length === 0 ? (
               <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
                 Es sind noch keine Event-Templates vorhanden. Das Event kann

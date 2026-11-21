@@ -9,6 +9,7 @@ import { UserRole } from "@/generated/prisma/enums";
 import {
   eventPhaseOptions,
   getPhaseLabel,
+  getPhaseDescription,
   getTaskPriorityPresentation,
   getTaskStatusPresentation,
   taskPriorityOptions,
@@ -120,6 +121,7 @@ export function TaskForm({
     selectedResponsibleId && selectedResponsibleId === selectedReviewerId,
   );
   const originalDueDate = initialValues.dueDate;
+  const [selectedPhase, setSelectedPhase] = useState(state.values.phase);
   const [currentDueDate, setCurrentDueDate] = useState(state.values.dueDate);
   const shouldAskForFollowingShift =
     mode === "edit" &&
@@ -187,6 +189,10 @@ export function TaskForm({
                 <select
                   className={inputClass}
                   defaultValue={state.values.phase}
+                  onChange={(event) =>
+                    setSelectedPhase(event.target.value as typeof selectedPhase)
+                  }
+                  aria-describedby="task-phase-help"
                   name="phase"
                   required
                 >
@@ -196,6 +202,12 @@ export function TaskForm({
                     </option>
                   ))}
                 </select>
+                <p
+                  id="task-phase-help"
+                  className="mt-1.5 text-xs leading-5 text-slate-500"
+                >
+                  {getPhaseDescription(selectedPhase)}
+                </p>
                 <FieldError name="phase" state={state} />
               </label>
             ) : (

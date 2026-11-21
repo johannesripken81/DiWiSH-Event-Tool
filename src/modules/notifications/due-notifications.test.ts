@@ -33,6 +33,15 @@ function task(
 }
 
 describe("Aufgabenbenachrichtigungen", () => {
+  it("erinnert weiter an Aufgaben, die auf externe Rückmeldung warten", () => {
+    assert.deepEqual(
+      planDueNotifications(
+        task("2026-06-13", { status: TaskStatus.WAITING_EXTERNAL }),
+        today,
+      ).map((plan) => plan.type),
+      [NotificationType.TASK_DUE_TODAY],
+    );
+  });
   it("plant Erinnerungen genau 7 Tage, 3 Tage und am Fälligkeitstag", () => {
     assert.deepEqual(
       planDueNotifications(task("2026-06-20"), today).map((plan) => plan.type),

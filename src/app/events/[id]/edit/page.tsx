@@ -145,6 +145,7 @@ export default async function EditEventPage({
       endTime: formatEventFormTime(event.endTime),
       location: event.location ?? "",
       format: event.format ?? "",
+      project: event.project ?? "",
       goal: event.goal ?? "",
       targetAudience: event.targetAudience ?? "",
       eventLeadId: event.eventLeadId ?? "",

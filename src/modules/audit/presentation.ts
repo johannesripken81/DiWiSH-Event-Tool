@@ -37,6 +37,7 @@ const fieldLabels: Record<string, string> = {
   endTime: "Endzeit",
   location: "Location",
   format: "Format",
+  project: "Projekt",
   goal: "Ziele, Nutzenversprechen, gewünschtes Ergebnis",
   targetAudience: "Zielgruppe",
   eventLeadName: "Event Lead",

@@ -20,6 +20,22 @@ function task(
 }
 
 describe("Aufgabenstatus nach Fälligkeit", () => {
+  it("behält externe Rückmeldungen als offene, überfällige und kritische Aufgaben bei", () => {
+    const waiting = task("2026-06-13", TaskStatus.WAITING_EXTERNAL, true);
+    assert.equal(isOverdueTask(waiting, today), true);
+    assert.equal(
+      isTaskDueSoon(task("2026-06-15", TaskStatus.WAITING_EXTERNAL), today),
+      true,
+    );
+    assert.deepEqual(calculateTaskMetrics([waiting], today), {
+      totalTasks: 1,
+      completedTasks: 0,
+      openTasks: 1,
+      overdueTasks: 1,
+      criticalOpenTasks: 1,
+      progress: 0,
+    });
+  });
   it("zählt extern übernommene Aufgaben als abgeschlossen", () => {
     const metrics = calculateTaskMetrics(
       [

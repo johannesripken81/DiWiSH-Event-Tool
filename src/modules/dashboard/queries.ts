@@ -45,18 +45,39 @@ type DashboardQueryRow = {
   activeEvents: number;
   dashboardTasks: DashboardQueryTask[];
   upcomingEvents: DashboardQueryEvent[];
+  pastEvents: DashboardQueryEvent[];
   users: DashboardQueryUser[];
 };
+
+function getEventPreviewQuery(today: Date, past: boolean) {
+  const condition = past
+    ? Prisma.sql`e."eventDate" < ${today}`
+    : Prisma.sql`e."eventDate" >= ${today} AND e.status::text IN (${Prisma.join([EventStatus.DRAFT, EventStatus.PLANNING, EventStatus.EXECUTION, EventStatus.FOLLOW_UP])})`;
+  const order = past ? Prisma.sql`DESC` : Prisma.sql`ASC`;
+  return Prisma.sql`SELECT json_agg(event_rows ORDER BY event_rows."eventDate" ${order}, event_rows.id ASC)
+    FROM (
+      SELECT e.id, e.title, e.location, e."eventDate",
+        (SELECT COUNT(*)::int FROM "EventTask" t WHERE t."eventId" = e.id) AS "totalTasks",
+        (SELECT COUNT(*)::int FROM "EventTask" t WHERE t."eventId" = e.id AND t.status::text IN ('COMPLETED', 'CANCELLED')) AS "completedTasks",
+        (SELECT COUNT(*)::int FROM "EventTask" t WHERE t."eventId" = e.id AND t.status::text NOT IN ('COMPLETED', 'CANCELLED') AND t."dueDate" < ${today}) AS "overdueTasks"
+      FROM "Event" e
+      WHERE ${condition}
+      ORDER BY e."eventDate" ${order}, e.id ASC
+      LIMIT 8
+    ) event_rows`;
+}
 
 export function getDashboardQuery({
   nextSevenDays,
   selectedResponsibleUserId,
   selectedUnassigned,
+  showPastEvents = false,
   today,
 }: {
   nextSevenDays: Date;
   selectedResponsibleUserId?: string;
   selectedUnassigned: boolean;
+  showPastEvents?: boolean;
   today: Date;
 }) {
   const responsibleCondition = selectedUnassigned
@@ -74,7 +95,7 @@ export function getDashboardQuery({
           EventStatus.PLANNING,
           EventStatus.EXECUTION,
           EventStatus.FOLLOW_UP,
-        ])})
+        ])}) AND e."eventDate" >= ${today}
       ) AS "activeEvents",
       COALESCE(
         (
@@ -112,20 +133,14 @@ export function getDashboardQuery({
       ) AS "dashboardTasks",
       COALESCE(
         (
-          SELECT json_agg(event_rows ORDER BY event_rows."eventDate" ASC)
-          FROM (
-            SELECT e.id, e.title, e.location, e."eventDate",
-              (SELECT COUNT(*)::int FROM "EventTask" t WHERE t."eventId" = e.id) AS "totalTasks",
-              (SELECT COUNT(*)::int FROM "EventTask" t WHERE t."eventId" = e.id AND t.status::text IN ('COMPLETED', 'CANCELLED')) AS "completedTasks",
-              (SELECT COUNT(*)::int FROM "EventTask" t WHERE t."eventId" = e.id AND t.status::text NOT IN ('COMPLETED', 'CANCELLED') AND t."dueDate" < ${today}) AS "overdueTasks"
-            FROM "Event" e
-            WHERE e.status::text IN (${Prisma.join([EventStatus.DRAFT, EventStatus.PLANNING, EventStatus.EXECUTION, EventStatus.FOLLOW_UP])})
-            ORDER BY e."eventDate" ASC
-            LIMIT 8
-          ) event_rows
+          ${getEventPreviewQuery(today, false)}
         ),
         '[]'::json
       ) AS "upcomingEvents",
+      COALESCE(
+        (${showPastEvents ? getEventPreviewQuery(today, true) : Prisma.sql`SELECT NULL::json`}),
+        '[]'::json
+      ) AS "pastEvents",
       COALESCE(
         (
           SELECT json_agg(user_rows ORDER BY user_rows.name ASC)
@@ -150,6 +165,7 @@ export async function getDashboardData(
     activeEvents: 0,
     dashboardTasks: [],
     upcomingEvents: [],
+    pastEvents: [],
     users: [],
   };
 
@@ -164,6 +180,14 @@ export async function getDashboardData(
       },
     })),
     upcomingEvents: row.upcomingEvents.map((event) => ({
+      ...event,
+      progress:
+        event.totalTasks === 0
+          ? 0
+          : Math.round((event.completedTasks / event.totalTasks) * 100),
+      eventDate: new Date(event.eventDate),
+    })),
+    pastEvents: row.pastEvents.map((event) => ({
       ...event,
       progress:
         event.totalTasks === 0
